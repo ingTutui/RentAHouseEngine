@@ -1,6 +1,5 @@
 """Strumenti comuni dei test: un piccolo server HTTP locale che fa da sito di agenzia, da Telegram e da
 OpenRouter, e una cartella del radar temporanea con le sue fonti."""
-from __future__ import annotations
 
 import json
 import shutil
@@ -8,7 +7,7 @@ import sys
 import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from typing import Callable, Dict, List, Optional, Tuple
+from collections.abc import Callable
 from urllib.parse import parse_qs, urlparse
 
 import pytest
@@ -21,9 +20,9 @@ class Server:
     """Server locale: pagine statiche (modificabili durante il test) e gestori per i percorsi dinamici."""
 
     def __init__(self):
-        self.pagine: Dict[str, Tuple[int, str, str]] = {}
-        self.gestori: Dict[str, Callable[[str, dict, bytes], Tuple[int, str, str]]] = {}
-        self.richieste: List[Tuple[str, str]] = []
+        self.pagine: dict[str, tuple[int, str, str]] = {}
+        self.gestori: dict[str, Callable[[str, dict, bytes], tuple[int, str, str]]] = {}
+        self.richieste: list[tuple[str, str]] = []
         server = self
 
         class Gestore(BaseHTTPRequestHandler):
@@ -72,8 +71,8 @@ class Server:
 
 class FintoTelegram:
     def __init__(self, server: Server, rifiuta: bool = False):
-        self.messaggi: List[str] = []
-        self.campi: List[dict] = []          # tutti i campi di ogni richiesta sendMessage
+        self.messaggi: list[str] = []
+        self.campi: list[dict] = []          # tutti i campi di ogni richiesta sendMessage
         self.rifiuta = rifiuta
         server.gestori["/botTOKEN"] = self
 
@@ -89,10 +88,10 @@ class FintoTelegram:
 class FintoOpenRouter:
     """Risponde alle richieste chat/completions con la funzione 'risposta(corpo) -> dict' scelta dal test."""
 
-    def __init__(self, server: Server, risposta: Optional[Callable[[dict], dict]] = None):
-        self.corpi: List[dict] = []
+    def __init__(self, server: Server, risposta: Callable[[dict], dict] | None = None):
+        self.corpi: list[dict] = []
         self.risposta = risposta or (lambda corpo: {"ok": True, "saluto": "ciao a tutti"})
-        self.errore: Optional[Tuple[int, str]] = None
+        self.errore: tuple[int, str] | None = None
         self.rifiuta_schema = False
         server.gestori["/api/v1/chat/completions"] = self
 

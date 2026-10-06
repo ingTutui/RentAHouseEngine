@@ -4,12 +4,10 @@ con un nuovo indirizzo. Se e' gia' stato visto, non viene segnalato di nuovo.
 Confronto a punti su prezzo, metratura, locali, comune, via e titolo. Se il risultato e' incerto e l'LLM
 e' disponibile, decide l'LLM; altrimenti l'annuncio viene segnalato con la nota "forse e' lo stesso di...".
 """
-from __future__ import annotations
 
 import logging
 import re
 from dataclasses import dataclass
-from typing import List, Optional, Tuple
 
 from .analisi import Annuncio
 from .comuni import comune_ufficiale, normalizza
@@ -44,7 +42,7 @@ SISTEMA_CONFRONTO = (
 class Esito:
     gruppo: str = ""                 # gruppo dell'annuncio gia' noto ('' = nessun doppione)
     certezza: str = ""               # "sicuro" | "llm"
-    simile: Optional[Annuncio] = None  # candidato piu' vicino quando resta il dubbio
+    simile: Annuncio | None = None  # candidato piu' vicino quando resta il dubbio
     punti: int = 0
 
 
@@ -60,11 +58,11 @@ def parole(testo: str) -> set:
     return {w for w in re.findall(r"[a-z]{3,}", normalizza(testo)) if w not in VUOTE}
 
 
-def _sede(a: Annuncio) -> Optional[str]:
+def _sede(a: Annuncio) -> str | None:
     return comune_ufficiale(a.comune_fonte or "") if a.tipo_fonte == "agenzia" else None
 
 
-def punteggio(a: Annuncio, b: Annuncio, tol_pct: float, tol_mq: int) -> Optional[Tuple[int, str]]:
+def punteggio(a: Annuncio, b: Annuncio, tol_pct: float, tol_mq: int) -> tuple[int, str] | None:
     """(punti di somiglianza, comune: "certo" | "indizio" | ""); None se sono sicuramente immobili diversi."""
     punti, comune = 0, ""
     if a.stanza != b.stanza:
@@ -114,7 +112,7 @@ def _scheda(a: Annuncio) -> str:
     return "; ".join(pezzi)
 
 
-def chiedi_llm(a: Annuncio, candidati: List[Tuple[str, Annuncio, int]], llm) -> Optional[str]:
+def chiedi_llm(a: Annuncio, candidati: list[tuple[str, Annuncio, int]], llm) -> str | None:
     righe = [f"{i + 1}. {_scheda(b)}" for i, (_, b, _) in enumerate(candidati)]
     utente = f"Annuncio nuovo: {_scheda(a)}\n\nCandidati gia' visti:\n" + "\n".join(righe) + \
         "\n\nQuale candidato descrive lo stesso immobile dell'annuncio nuovo? 0 se nessuno."
@@ -135,7 +133,7 @@ def chiedi_llm(a: Annuncio, candidati: List[Tuple[str, Annuncio, int]], llm) -> 
 def cerca(a: Annuncio, archivio, llm, cfg: dict) -> Esito:
     d = cfg["doppioni"]
     tol_pct, tol_mq = float(d.get("tolleranza_prezzo_pct", 3)), int(d.get("tolleranza_mq", 3))
-    trovati: List[Tuple[str, Annuncio, int]] = []
+    trovati: list[tuple[str, Annuncio, int]] = []
     livello = {}
     for _uid, gruppo, b in archivio.candidati(a.prezzo, a.mq, tol_pct, tol_mq, int(d.get("finestra_giorni", 120)),
                                              a.uid):

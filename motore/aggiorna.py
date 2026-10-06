@@ -5,7 +5,6 @@ installa le dipendenze se requirements.txt e' cambiato e lancia "radar.py --veri
 fallisce torna alla versione precedente e non riprova quella versione finche' su GitHub non ne arriva un'altra.
 Le modifiche fatte a mano su questo PC non vengono mai cancellate: in quel caso l'aggiornamento si salta.
 """
-from __future__ import annotations
 
 import logging
 import os
@@ -13,7 +12,6 @@ import shutil
 import subprocess
 import sys
 from pathlib import Path
-from typing import List, Tuple
 
 from .archivio import adesso
 
@@ -21,7 +19,7 @@ log = logging.getLogger("radar")
 SENZA_FINESTRA = 0x08000000 if os.name == "nt" else 0  # Windows: niente finestre nere che lampeggiano
 
 
-def _git(base: Path, *argomenti: str, timeout: int = 120) -> Tuple[int, str]:
+def _git(base: Path, *argomenti: str, timeout: int = 120) -> tuple[int, str]:
     # l'avvio automatico non ha nessuno davanti: se mancano le credenziali git deve fallire subito, non aspettare
     ambiente = dict(os.environ, GIT_TERMINAL_PROMPT="0", GCM_INTERACTIVE="never")
     try:
@@ -32,7 +30,7 @@ def _git(base: Path, *argomenti: str, timeout: int = 120) -> Tuple[int, str]:
         return 1, f"{type(ex).__name__}: {ex}"
 
 
-def _python(base: Path, argomenti: List[str], timeout: int) -> Tuple[int, str]:
+def _python(base: Path, argomenti: list[str], timeout: int) -> tuple[int, str]:
     try:
         r = subprocess.run([sys.executable, *argomenti], cwd=str(base), capture_output=True, text=True,
                            encoding="utf-8", errors="replace", timeout=timeout, creationflags=SENZA_FINESTRA)

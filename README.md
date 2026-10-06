@@ -32,13 +32,17 @@ Il radar gira **solo** sul PC sempre acceso. Sul PC di sviluppo si programma e s
 
 ## Installazione sul PC sempre acceso
 
-Servono Python 3.9 o più recente e Git.
+Servono **Python 3.14** (https://www.python.org/downloads/) e Git. Nei comandi che seguono `python` è il
+Python 3.14; su Windows, se `python` non c'è o è una versione più vecchia, scrivi `py -3.14`.
 
 ```bash
 git clone https://github.com/ingTutui/RentAHouseEngine.git
 cd RentAHouseEngine
-pip install -r requirements.txt
+python -m pip install -r requirements.txt
 ```
+
+Su Linux e Mac usa un ambiente virtuale (`python3.14 -m venv .venv`, poi `.venv/bin/python -m pip install -r
+requirements.txt` e lancia i comandi con `.venv/bin/python`): l'avvio automatico usa lo stesso Python con cui lo installi.
 
 1. **Segreti.** Copia `.env.example` in `.env`. Il file resta solo su questo PC (è escluso da git).
 2. **Telegram.** `python radar.py --telegram-setup`: ti guida a creare il bot con @BotFather, trova da solo il
@@ -71,8 +75,9 @@ la versione che ha.
 ```bash
 git clone https://github.com/ingTutui/RentAHouseEngine.git
 cd RentAHouseEngine
-pip install -r requirements-dev.txt
+python -m pip install -r requirements-dev.txt
 python -m pytest            # tutti i test (usano siti, Telegram e OpenRouter finti: niente rete)
+python -m ruff check .      # controllo dello stile
 python radar.py --verifica  # la stessa autoverifica che fa l'aggiornamento automatico
 ```
 
@@ -86,6 +91,16 @@ python radar.py --verifica  # la stessa autoverifica che fa l'aggiornamento auto
 **Per cambiare qualcosa:** crea un ramo (`git switch -c nome-modifica`), modifica, esegui `python -m pytest`,
 poi `git push -u origin nome-modifica` e apri la pull request su GitHub. Quando premi **Merge**, entro 30 minuti
 la modifica è sul PC sempre acceso.
+
+## Python e librerie
+
+- Il progetto è scritto per **Python 3.14**. Con una versione più vecchia `radar.py` si ferma subito con un
+  messaggio chiaro, e l'aggiornamento automatico non tiene una versione che non supera `--verifica`.
+- Le librerie in `requirements.txt` hanno come minimo le versioni più recenti (requests 2.34, beautifulsoup4 4.15,
+  lxml 6.1; pytest 9.1 e ruff 0.16 per lo sviluppo). Per aggiornarle: `python -m pip install -U -r requirements.txt`.
+  Quando alzi i minimi in `requirements.txt` e il PC sempre acceso scarica la modifica, installa da solo le nuove versioni.
+- Il codice usa solo la libreria standard per leggere i file TOML (`tomllib`) e le annotazioni di tipo native di
+  Python 3.14: niente `tomli`, niente `from __future__`.
 
 ## Impostazioni
 
@@ -165,7 +180,7 @@ inondarti di annunci vecchi.
 - **Idealista:** solo con l'API ufficiale. Se ti danno le chiavi (https://developers.idealista.com/access-request),
   mettile in `.env` (`IDEALISTA_API_KEY`, `IDEALISTA_API_SECRET`); il radar la interroga ogni 12 ore.
 - **Siti che caricano gli annunci in JavaScript:** per quelli segnati `js` nel CSV serve Playwright
-  (`pip install playwright`, poi `python -m playwright install chromium`). Senza, il radar li legge senza browser
+  (`python -m pip install playwright`, poi `python -m playwright install chromium`). Senza, il radar li legge senza browser
   e quasi sempre non vede gli annunci: compaiono tra le fonti "senza annunci" in `--stato`.
 
 ## Se qualcosa non va
@@ -185,6 +200,7 @@ radar.py              punto di ingresso
 config.toml           impostazioni condivise
 llm.toml              modello OpenRouter
 .env.example          modello del file dei segreti
+requirements.txt      librerie (requirements-dev.txt: anche pytest e ruff); .python-version: 3.14
 fonti/                elenchi di agenzie e portali (CSV)
 installa/             avvio automatico (Windows, Linux, Mac)
 motore/               codice (config, fonti, rete, estrazione, analisi, doppioni, notifiche, llm, aggiorna, ...)
@@ -194,6 +210,7 @@ stato/                archivio e diario di questo PC (ignorata da git)
 
 ## Regole del progetto
 
+- Python 3.14 e librerie alle versioni più recenti.
 - Token e chiavi stanno solo in `.env`, mai nel codice né su GitHub.
 - Il modello OpenRouter si sceglie in `llm.toml` (o nel file indicato da `LLM_CONFIG`), mai nel codice.
 - Le modifiche passano da una pull request: sul PC sempre acceso arriva solo ciò che è in `main`.

@@ -1,12 +1,10 @@
 """Un controllo completo: legge le fonti, riconosce gli annunci nuovi, li filtra, toglie i doppioni,
 li mette in coda e consegna la coda (se non e' l'orario di silenzio)."""
-from __future__ import annotations
 
 import logging
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 from datetime import date
-from typing import Dict, List, Optional, Tuple
 
 from . import doppioni, idealista
 from .analisi import Annuncio, analizza, scarta
@@ -27,15 +25,15 @@ class Contesto:
     cfg: dict
     archivio: Archivio
     scaricatore: Scaricatore
-    llm: Optional[ClienteLLM]
+    llm: ClienteLLM | None
     pagine: int = 0
-    conteggi: Dict[str, int] = field(default_factory=dict)
+    conteggi: dict[str, int] = field(default_factory=dict)
 
     def conta(self, chiave: str) -> None:
         self.conteggi[chiave] = self.conteggi.get(chiave, 0) + 1
 
 
-def leggi_fonte(f: Fonte, scaricatore: Scaricatore, inizializzata: bool, cfg: dict) -> Tuple[Trovati, str]:
+def leggi_fonte(f: Fonte, scaricatore: Scaricatore, inizializzata: bool, cfg: dict) -> tuple[Trovati, str]:
     urls = [f.url]
     if portale_di(f.url) == "immobiliare.it":
         e = cfg["esecuzione"]
@@ -91,7 +89,7 @@ def elabora(a: Annuncio, js: bool, ctx: Contesto) -> str:
     return "da_inviare"
 
 
-def esegui(cfg: dict, percorsi: Percorsi, segreti: Dict[str, str], solo: str = "", nome: str = "",
+def esegui(cfg: dict, percorsi: Percorsi, segreti: dict[str, str], solo: str = "", nome: str = "",
            finto: bool = False, forza_invio: bool = False) -> int:
     """Un controllo completo. Restituisce il numero di annunci nuovi messi in coda."""
     percorsi.prepara()
@@ -111,13 +109,13 @@ def esegui(cfg: dict, percorsi: Percorsi, segreti: Dict[str, str], solo: str = "
     stati = {f.url: archivio.fonte(f.url) for f in fonti}
     log.info("Controllo di %d fonti · %s", len(fonti), llm.stato())
     # 1) lettura: siti diversi in parallelo, stesso sito in sequenza; i siti in JavaScript alla fine
-    gruppi: Dict[str, List[Fonte]] = {}
+    gruppi: dict[str, list[Fonte]] = {}
     for f in fonti:
         if not (f.js and e["usa_browser_per_js"]):
             gruppi.setdefault(dominio(f.url), []).append(f)
-    letture: Dict[str, Tuple[Trovati, str]] = {}
+    letture: dict[str, tuple[Trovati, str]] = {}
 
-    def leggi_gruppo(lista: List[Fonte]):
+    def leggi_gruppo(lista: list[Fonte]):
         return [(f.url, leggi_fonte(f, scaricatore, stati[f.url]["inizializzata"], cfg)) for f in lista]
 
     try:
@@ -148,7 +146,7 @@ def esegui(cfg: dict, percorsi: Percorsi, segreti: Dict[str, str], solo: str = "
             if cambio_sito:
                 log.warning("%s: quasi tutti i link sono cambiati (sito rifatto?): li salvo senza avvisarti",
                             f.nome)
-            esiti: Dict[str, int] = {}
+            esiti: dict[str, int] = {}
             for uid in nuovi_uid:
                 url, testo, titolo = trovati[uid]
                 a = analizza(uid, url, testo, titolo, f, cfg)

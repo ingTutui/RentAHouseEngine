@@ -1,6 +1,5 @@
 """Modalita' servizio (python radar.py --servizio), quella usata dall'avvio automatico ogni 30 minuti:
 un solo controllo alla volta, aggiornamento dal repository, poi il controllo vero e proprio."""
-from __future__ import annotations
 
 import logging
 import os
@@ -8,7 +7,6 @@ import subprocess
 import sys
 import time
 from pathlib import Path
-from typing import Dict
 
 from .aggiorna import SENZA_FINESTRA, aggiorna
 from .archivio import Archivio
@@ -70,7 +68,7 @@ class Blocco:
             self.preso = False
 
 
-def servizio(cfg: dict, percorsi: Percorsi, segreti: Dict[str, str], finto: bool = False) -> int:
+def servizio(cfg: dict, percorsi: Percorsi, segreti: dict[str, str], finto: bool = False) -> int:
     percorsi.prepara()
     blocco = Blocco(percorsi.lock)
     if not blocco.prendi():

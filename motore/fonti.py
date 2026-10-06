@@ -1,10 +1,8 @@
 """Le fonti da controllare: fonti/fonti_portali.csv e fonti/fonti_agenzie.csv."""
-from __future__ import annotations
 
 import csv
 from dataclasses import dataclass
 from pathlib import Path
-from typing import List
 
 
 @dataclass
@@ -25,7 +23,7 @@ def _spenta(v: str) -> bool:
     return (v or "sì").strip().lower() in ("no", "0", "n", "false")
 
 
-def leggi_csv(path: Path) -> List[dict]:
+def leggi_csv(path: Path) -> list[dict]:
     if not path.exists():
         return []
     for codifica in ("utf-8-sig", "cp1252"):  # cp1252: file risalvato da Excel su Windows
@@ -41,8 +39,8 @@ def leggi_csv(path: Path) -> List[dict]:
     raise SystemExit(f"Non riesco a leggere {path.name}: salvalo come CSV UTF-8")
 
 
-def carica_fonti(cartella: Path) -> List[Fonte]:
-    fonti: List[Fonte] = []
+def carica_fonti(cartella: Path) -> list[Fonte]:
+    fonti: list[Fonte] = []
     for r in leggi_csv(cartella / "fonti_portali.csv"):
         if _spenta(r.get("attiva", "")) or not (r.get("url") or "").strip():
             continue

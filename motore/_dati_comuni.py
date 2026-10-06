@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """Dati generati: comuni ISTAT delle province di Modena, Reggio Emilia e Bologna
 (confini openpolis) e frazioni con il loro comune (GeoNames + elenco curato a mano).
 Nomi ambigui o che sono anche parole comuni (Bagno, Prato, Fontana...) sono esclusi."""

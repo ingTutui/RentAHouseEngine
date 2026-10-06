@@ -1,9 +1,7 @@
 """Dati di un annuncio (prezzo, metratura, locali, comune) e filtri."""
-from __future__ import annotations
 
 import re
 from dataclasses import asdict, dataclass, fields
-from typing import List, Optional
 from urllib.parse import urlparse
 
 from .comuni import comune_ufficiale, trova_luogo, valuta_area
@@ -34,17 +32,17 @@ class Annuncio:
     comune_fonte: str                # comune della pagina del portale o sede dell'agenzia
     titolo: str
     testo: str                       # testo della scheda nell'elenco
-    prezzo: Optional[int] = None
-    mq: Optional[int] = None
-    locali: Optional[int] = None
+    prezzo: int | None = None
+    mq: int | None = None
+    locali: int | None = None
     stanza: bool = False
     vendita: bool = False
-    comune: Optional[str] = None     # comune dell'immobile
-    frazione: Optional[str] = None
+    comune: str | None = None     # comune dell'immobile
+    frazione: str | None = None
     origine_luogo: str = ""          # "portale" | "dettaglio" | "testo"
     area: str = ""                   # dentro | fuori | incerto | sconosciuto
     zona_avviso: str = ""
-    spese: Optional[int] = None
+    spese: int | None = None
     arredato: str = ""
     disponibile: str = ""
     indirizzo: str = ""
@@ -62,12 +60,12 @@ class Annuncio:
         return asdict(self)
 
     @classmethod
-    def da_dict(cls, d: dict) -> "Annuncio":
+    def da_dict(cls, d: dict) -> Annuncio:
         nomi = {f.name for f in fields(cls)}
         return cls(**{k: v for k, v in d.items() if k in nomi})
 
 
-def importi(testo: str) -> List[int]:
+def importi(testo: str) -> list[int]:
     out = []
     for g1, g2 in RE_EURO.findall(testo or ""):
         cifra = re.sub(r"[.\s']", "", g1 or g2)

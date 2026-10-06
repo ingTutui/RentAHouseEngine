@@ -5,14 +5,12 @@ Se Telegram non risponde restano in coda e si riprova al controllo successivo.
 Le fonti che non funzionano vengono citate in fondo a un messaggio con novita', al massimo una volta
 a settimana; da sole solo se per giorni non c'e' stato nessun messaggio da accodare.
 """
-from __future__ import annotations
 
 import json
 import logging
 import re
 import time
 from datetime import datetime, timedelta
-from typing import Dict, List, Optional, Tuple
 
 import requests
 
@@ -32,12 +30,12 @@ def esc_attr(t: str) -> str:
 
 
 class Telegram:
-    def __init__(self, segreti: Dict[str, str], finto: bool = False):
+    def __init__(self, segreti: dict[str, str], finto: bool = False):
         self.token = (segreti.get("TELEGRAM_TOKEN") or "").strip()
         self.chat = (segreti.get("TELEGRAM_CHAT_ID") or "").strip()
         self.base = (segreti.get("TELEGRAM_API_URL") or "https://api.telegram.org").rstrip("/")
         self.finto = finto or not (self.token and self.chat)
-        self.inviati: List[str] = []
+        self.inviati: list[str] = []
         if self.finto and not finto:
             log.info("Telegram non configurato su questo PC: i messaggi vengono solo mostrati a schermo")
 
@@ -77,7 +75,7 @@ class Telegram:
 
 
 # ---------------------------------------------------------------------- orario di silenzio
-def _ora(testo: str) -> Optional[Tuple[int, int]]:
+def _ora(testo: str) -> tuple[int, int] | None:
     m = re.fullmatch(r"\s*(\d{1,2})[:.](\d{2})\s*", testo or "")
     if not m or int(m.group(1)) > 23 or int(m.group(2)) > 59:
         return None
@@ -122,12 +120,12 @@ def luogo(a: Annuncio) -> str:
     return a.comune
 
 
-def solo_sul_sito(a: Annuncio, altre: List[Tuple[str, str, str]]) -> bool:
+def solo_sul_sito(a: Annuncio, altre: list[tuple[str, str, str]]) -> bool:
     return a.tipo_fonte == "agenzia" and a.prezzo is not None and \
         not any(f == "Immobiliare.it" for f, _, _ in altre)
 
 
-def _altre(altre: List[Tuple[str, str, str]]) -> str:
+def _altre(altre: list[tuple[str, str, str]]) -> str:
     nomi = []
     for fonte, _, url in altre:
         if fonte not in [n for n, _ in nomi]:
@@ -135,7 +133,7 @@ def _altre(altre: List[Tuple[str, str, str]]) -> str:
     return ", ".join(f'<a href="{esc_attr(u)}">{esc(f)}</a>' for f, u in nomi[:4])
 
 
-def messaggio(a: Annuncio, altre: List[Tuple[str, str, str]], adesso: datetime) -> str:
+def messaggio(a: Annuncio, altre: list[tuple[str, str, str]], adesso: datetime) -> str:
     sorgente = esc(a.fonte) + (" (sito dell'agenzia)" if a.tipo_fonte == "agenzia" else "")
     righe = [f"<b>Nuovo affitto</b> · {sorgente}", f"<b>{esc(a.titolo[:150])}</b>"]
     dati = riga_dati(a)
@@ -164,10 +162,10 @@ def messaggio(a: Annuncio, altre: List[Tuple[str, str, str]], adesso: datetime) 
     return "\n".join(righe)
 
 
-def riepilogo(lista: List[Tuple[Annuncio, List[Tuple[str, str, str]]]], notte: bool) -> List[Tuple[str, List[str]]]:
+def riepilogo(lista: list[tuple[Annuncio, list[tuple[str, str, str]]]], notte: bool) -> list[tuple[str, list[str]]]:
     """Un unico elenco (diviso in piu' messaggi se e' lungo): [(testo, uid inclusi)]."""
     titolo = f"<b>{len(lista)} nuovi affitti</b>" + (" trovati stanotte" if notte else "")
-    blocchi: List[Tuple[str, List[str]]] = []
+    blocchi: list[tuple[str, list[str]]] = []
     corrente, uids = [titolo], []
     for a, altre in lista:
         posto = luogo(a)
@@ -184,7 +182,7 @@ def riepilogo(lista: List[Tuple[Annuncio, List[Tuple[str, str, str]]]], notte: b
 
 
 # ---------------------------------------------------------------------- fonti che non funzionano
-def guasti_da_dire(archivio, cfg: dict, adesso: datetime) -> List[dict]:
+def guasti_da_dire(archivio, cfg: dict, adesso: datetime) -> list[dict]:
     n = cfg["notifiche"]
     if not n.get("avvisi_guasti", True):
         return []
@@ -200,7 +198,7 @@ def guasti_da_dire(archivio, cfg: dict, adesso: datetime) -> List[dict]:
     return out
 
 
-def testo_guasti(problemi: List[dict], da_solo: bool) -> str:
+def testo_guasti(problemi: list[dict], da_solo: bool) -> str:
     fonti = [p for p in problemi if p["url"]]
     pezzi = []
     if fonti:
@@ -212,7 +210,7 @@ def testo_guasti(problemi: List[dict], da_solo: bool) -> str:
     return f"<b>Radar Affitti</b>: {corpo[0].upper() + corpo[1:]}" if da_solo else f"\n\n<i>Da controllare: {corpo}</i>"
 
 
-def _chiudi_guasti(archivio, problemi: List[dict], adesso: datetime) -> None:
+def _chiudi_guasti(archivio, problemi: list[dict], adesso: datetime) -> None:
     archivio.segna_segnalati([p["url"] for p in problemi if p["url"]])
     archivio.set("ultimo_avviso_guasti", adesso.strftime("%Y-%m-%d %H:%M"))
     if any(not p["url"] for p in problemi):
@@ -220,7 +218,7 @@ def _chiudi_guasti(archivio, problemi: List[dict], adesso: datetime) -> None:
 
 
 # ---------------------------------------------------------------------- consegna
-def consegna(archivio, tg: Telegram, cfg: dict, adesso: Optional[datetime] = None, forza: bool = False) -> int:
+def consegna(archivio, tg: Telegram, cfg: dict, adesso: datetime | None = None, forza: bool = False) -> int:
     """Invia gli annunci in coda. Restituisce quanti ne sono stati segnalati."""
     n = cfg["notifiche"]
     adesso = adesso or datetime.now()

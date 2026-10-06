@@ -1,13 +1,12 @@
 """Autoverifica veloce (python radar.py --verifica): la usa l'aggiornamento automatico prima di tenere
 una versione nuova del codice. Non scarica niente da internet e non manda messaggi."""
-from __future__ import annotations
 
 import shutil
 import tempfile
 import traceback
 from datetime import datetime
 from pathlib import Path
-from typing import Callable, List
+from collections.abc import Callable
 
 from .config import Percorsi, carica_config, carica_segreti
 
@@ -19,7 +18,7 @@ HTML_AGENZIA = """<div><article><h3><a href="/immobile/bilocale-arredato-casinal
 
 
 def verifica(base: Path) -> int:
-    errori: List[str] = []
+    errori: list[str] = []
 
     def prova(nome: str, funzione: Callable[[], bool]) -> None:
         try:
@@ -97,7 +96,7 @@ def verifica(base: Path) -> int:
     return _fine(errori)
 
 
-def _fine(errori: List[str]) -> int:
+def _fine(errori: list[str]) -> int:
     if errori:
         print("Verifica NON superata:")
         for e in errori:

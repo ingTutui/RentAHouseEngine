@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 Radar Affitti - aggregatore di annunci in affitto per l'area di Modena (RentAHouseEngine).
 
@@ -12,6 +11,15 @@ Comandi principali (elenco completo: python radar.py --help):
 """
 import sys
 from pathlib import Path
+
+PYTHON_MINIMO = (3, 14)
+
+if sys.version_info < PYTHON_MINIMO:
+    # niente import del resto del programma: con un Python vecchio deve uscire solo questo messaggio
+    sys.exit(f"Radar Affitti richiede Python {PYTHON_MINIMO[0]}.{PYTHON_MINIMO[1]} o piu' recente, "
+             f"questo e' Python {sys.version_info[0]}.{sys.version_info[1]}.\n"
+             "Scaricalo da https://www.python.org/downloads/ e rilancia il comando con quella versione "
+             "(su Windows: py -3.14 radar.py ...).")
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 

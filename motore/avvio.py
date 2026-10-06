@@ -3,7 +3,6 @@
 python radar.py --installa-avvio   crea (o sostituisce) l'attivita' "RadarAffitti"
 python radar.py --togli-avvio      la toglie
 """
-from __future__ import annotations
 
 import os
 import subprocess

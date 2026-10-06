@@ -1,10 +1,9 @@
 """Riconoscimento del comune di un annuncio e controllo dell'area di ricerca."""
-from __future__ import annotations
 
 import re
 import unicodedata
 from functools import lru_cache
-from typing import Dict, Iterable, Optional, Tuple
+from collections.abc import Iterable
 
 from ._dati_comuni import COMUNI, FRAZIONI
 
@@ -46,8 +45,8 @@ def normalizza(testo: str) -> str:
 
 
 @lru_cache(maxsize=1)
-def _indice() -> Tuple[Dict[str, Tuple[str, Optional[str]]], "re.Pattern[str]"]:
-    nomi: Dict[str, Tuple[str, Optional[str]]] = {}
+def _indice() -> tuple[dict[str, tuple[str, str | None]], re.Pattern[str]]:
+    nomi: dict[str, tuple[str, str | None]] = {}
     for fr, com in FRAZIONI.items():
         nomi[normalizza(fr)] = (com, fr)
     for alias, com in ALIAS.items():
@@ -59,7 +58,7 @@ def _indice() -> Tuple[Dict[str, Tuple[str, Optional[str]]], "re.Pattern[str]"]:
     return nomi, regex
 
 
-def comune_ufficiale(nome: str) -> Optional[str]:
+def comune_ufficiale(nome: str) -> str | None:
     """Nome ISTAT del comune (accetta frazioni e nomi brevi). None se non lo conosce."""
     n = normalizza(nome)
     if not n:
@@ -74,7 +73,7 @@ def comune_ufficiale(nome: str) -> Optional[str]:
     return None
 
 
-def trova_luogo(*testi: str) -> Tuple[Optional[str], Optional[str]]:
+def trova_luogo(*testi: str) -> tuple[str | None, str | None]:
     """(comune, frazione) del primo luogo citato: prima nel titolo, poi nel resto del testo."""
     nomi, regex = _indice()
     for testo in testi:
@@ -89,8 +88,8 @@ def _insieme(nomi: Iterable[str]) -> set:
     return {normalizza(x) for x in nomi or [] if x}
 
 
-def valuta_area(comune: Optional[str], frazione: Optional[str], testo: str, filtri: dict
-                ) -> Tuple[str, str]:
+def valuta_area(comune: str | None, frazione: str | None, testo: str, filtri: dict
+                ) -> tuple[str, str]:
     """Dove si trova l'annuncio rispetto all'area di ricerca.
 
     Restituisce (esito, dettaglio) con esito:

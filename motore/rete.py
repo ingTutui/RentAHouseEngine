@@ -1,10 +1,8 @@
 """Scaricamento delle pagine: robots.txt, pause tra richieste allo stesso sito, browser per i siti in JavaScript."""
-from __future__ import annotations
 
 import logging
 import random
 import time
-from typing import Dict, Optional, Tuple
 from urllib import robotparser
 from urllib.parse import urlparse
 
@@ -27,8 +25,8 @@ class Scaricatore:
             "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
             "Accept-Language": "it-IT,it;q=0.9,en;q=0.6",
         })
-        self.ultimo: Dict[str, float] = {}
-        self.robots: Dict[str, Optional[robotparser.RobotFileParser]] = {}
+        self.ultimo: dict[str, float] = {}
+        self.robots: dict[str, robotparser.RobotFileParser | None] = {}
         self._pw = None
         self._browser = None
 
@@ -39,7 +37,7 @@ class Scaricatore:
             if mancano > 0:
                 time.sleep(mancano)
 
-    def consentito(self, url: str) -> Tuple[bool, str]:
+    def consentito(self, url: str) -> tuple[bool, str]:
         p = urlparse(url)
         base = f"{p.scheme}://{p.netloc}"
         if base not in self.robots:
@@ -61,7 +59,7 @@ class Scaricatore:
             return False, "vietato da robots.txt"
         return True, ""
 
-    def scarica(self, url: str, js: bool = False) -> Tuple[Optional[str], str]:
+    def scarica(self, url: str, js: bool = False) -> tuple[str | None, str]:
         ok, motivo = self.consentito(url)
         if not ok:
             return None, motivo
@@ -90,7 +88,7 @@ class Scaricatore:
                 time.sleep(3)
         return None, errore
 
-    def _scarica_browser(self, url: str) -> Optional[str]:
+    def _scarica_browser(self, url: str) -> str | None:
         try:
             if self._browser is None:
                 from playwright.sync_api import sync_playwright

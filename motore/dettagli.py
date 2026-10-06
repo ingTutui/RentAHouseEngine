@@ -4,12 +4,10 @@ Ordine: dati strutturati della pagina (JSON-LD) -> LLM via OpenRouter (se config
 espressioni regolari sulle parti piu' affidabili (titolo, descrizione, inizio del testo).
 I numeri letti dall'LLM vengono accettati solo se compaiono davvero nella pagina.
 """
-from __future__ import annotations
 
 import json
 import logging
 import re
-from typing import Optional, Tuple
 
 from bs4 import BeautifulSoup
 
@@ -89,7 +87,7 @@ def _cammina(oggetto, trovati: list, di_agenzia: bool = False) -> None:
             _cammina(v, trovati, di_agenzia)
 
 
-def _numero(v) -> Optional[int]:
+def _numero(v) -> int | None:
     if isinstance(v, (int, float)):
         return int(v)
     if isinstance(v, str):
@@ -144,7 +142,7 @@ def dati_strutturati(soup) -> dict:
     return out
 
 
-def leggi_pagina(html: str) -> Tuple[str, dict]:
+def leggi_pagina(html: str) -> tuple[str, dict]:
     """(testo principale della pagina, intestazioni e dati strutturati)."""
     soup = BeautifulSoup(html, PARSER)
     meta = {"strutturati": dati_strutturati(soup)}

@@ -3,3 +3,7 @@ testpaths = ["tests"]
 
 [tool.ruff]
 line-length = 130
+target-version = "py314"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "B", "UP"]

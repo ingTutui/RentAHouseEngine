@@ -4,23 +4,18 @@ La chiave sta nel file .env (OPENROUTER_API_KEY). Il modello si sceglie nel file
 [llm] file_modello in config.toml (di solito llm.toml) oppure con OPENROUTER_MODEL nel .env.
 Se manca qualcosa, o se si superano i limiti di spesa, il radar lavora come prima, senza LLM.
 """
-from __future__ import annotations
 
 import hashlib
 import json
 import logging
 import re
 import time
+import tomllib
 from datetime import date
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any
 
 import requests
-
-try:  # Python 3.11+
-    import tomllib
-except ModuleNotFoundError:
-    import tomli as tomllib  # type: ignore
 
 log = logging.getLogger("radar")
 URL_BASE = "https://openrouter.ai/api/v1"
@@ -35,7 +30,7 @@ def _primo(d: dict, *chiavi: str, default: Any = None) -> Any:
     return default
 
 
-def carica_modello(base: Path, cfg: dict, segreti: Dict[str, str]) -> dict:
+def carica_modello(base: Path, cfg: dict, segreti: dict[str, str]) -> dict:
     """Legge il file di configurazione del modello. Accetta TOML o JSON (YAML se e' installato PyYAML),
     con chiavi in italiano (modello, temperatura...) o in inglese (model, temperature...)."""
     nome = segreti.get("LLM_CONFIG") or cfg.get("llm", {}).get("file_modello") or "llm.toml"
@@ -91,7 +86,7 @@ def _contenuto(messaggio: dict) -> str:
     return c or ""
 
 
-def leggi_json(testo: str) -> Optional[dict]:
+def leggi_json(testo: str) -> dict | None:
     t = (testo or "").strip()
     t = re.sub(r"^```(?:json)?\s*|\s*```$", "", t, flags=re.I | re.S)
     try:
@@ -110,7 +105,7 @@ def leggi_json(testo: str) -> Optional[dict]:
 
 
 class ClienteLLM:
-    def __init__(self, cfg: dict, segreti: Dict[str, str], archivio, base: Path):
+    def __init__(self, cfg: dict, segreti: dict[str, str], archivio, base: Path):
         self.cfg = cfg.get("llm", {})
         self.archivio = archivio
         self.conf = carica_modello(base, cfg, segreti)
@@ -154,7 +149,7 @@ class ClienteLLM:
     # ------------------------------------------------------------------ chiamata
     def _corpo(self, modo: str, sistema: str, utente: str, schema: dict, nome: str) -> dict:
         c = self.conf
-        corpo: Dict[str, Any] = {
+        corpo: dict[str, Any] = {
             "messages": [{"role": "system", "content": sistema}, {"role": "user", "content": utente}],
             "temperature": c["temperatura"],
             "max_tokens": c["max_token"],
@@ -179,11 +174,11 @@ class ClienteLLM:
             corpo.update(c["extra"])
         return corpo
 
-    def chiedi_json(self, compito: str, sistema: str, utente: str, schema: dict) -> Optional[dict]:
+    def chiedi_json(self, compito: str, sistema: str, utente: str, schema: dict) -> dict | None:
         """Risposta JSON del modello, oppure None (LLM non disponibile o risposta non valida)."""
         if not self.disponibile():
             return None
-        chiave = hashlib.sha256(f"{self.conf['modello']}|{compito}|{sistema}|{utente}".encode("utf-8")).hexdigest()
+        chiave = hashlib.sha256(f"{self.conf['modello']}|{compito}|{sistema}|{utente}".encode()).hexdigest()
         if self.archivio is not None:
             salvata = self.archivio.cache_llm(chiave)
             if salvata:

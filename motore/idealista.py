@@ -1,9 +1,7 @@
 """Idealista: solo con l'API ufficiale (le chiavi si chiedono su developers.idealista.com/access-request)."""
-from __future__ import annotations
 
 import time
 from datetime import datetime
-from typing import Dict, List, Tuple
 
 import requests
 
@@ -12,7 +10,7 @@ from .archivio import adesso, quando
 from .comuni import comune_ufficiale
 
 
-def cerca(cfg: dict, segreti: Dict[str, str], archivio) -> Tuple[List[Annuncio], str]:
+def cerca(cfg: dict, segreti: dict[str, str], archivio) -> tuple[list[Annuncio], str]:
     c = cfg["idealista"]
     chiave, segreto = segreti.get("IDEALISTA_API_KEY", ""), segreti.get("IDEALISTA_API_SECRET", "")
     if not chiave or not segreto:

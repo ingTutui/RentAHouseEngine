@@ -7,13 +7,12 @@ Stati di un annuncio:
   da_inviare  in coda per Telegram (per esempio trovato di notte)
   inviato     gia' segnalato
 """
-from __future__ import annotations
 
 import json
 import sqlite3
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Iterable, List, Optional, Tuple
+from collections.abc import Iterable
 
 from .analisi import Annuncio
 from .comuni import trova_luogo
@@ -27,7 +26,7 @@ def adesso() -> str:
     return datetime.now().strftime(FMT)
 
 
-def quando(testo: str) -> Optional[datetime]:
+def quando(testo: str) -> datetime | None:
     try:
         return datetime.strptime((testo or "")[:16], FMT)
     except ValueError:
@@ -146,7 +145,7 @@ class Archivio:
                 problema_dal='', segnalato_il='', nota='', avvisato=0""", (url, nome, ora, n_link))
         self.db.commit()
 
-    def problemi(self, ore: float) -> List[dict]:
+    def problemi(self, ore: float) -> list[dict]:
         """Fonti che non funzionano da almeno 'ore' ore."""
         limite = datetime.now() - timedelta(hours=ore)
         out = []
@@ -182,7 +181,7 @@ class Archivio:
                          a.mq, a.locali, ora, ora, 1 if stato == "inviato" else 0, motivo, stato, gruppo or a.uid,
                          json.dumps(a.come_dict(), ensure_ascii=False), priorita))
 
-    def annuncio(self, uid: str) -> Optional[Annuncio]:
+    def annuncio(self, uid: str) -> Annuncio | None:
         r = self.db.execute("SELECT dati, uid, url, fonte, tipo_fonte, comune, titolo, prezzo, mq, locali "
                             "FROM annunci WHERE uid=?", (uid,)).fetchone()
         return self._da_riga(r) if r else None
@@ -198,8 +197,8 @@ class Archivio:
         return Annuncio(uid=uid, url=url or "", fonte=fonte or "", tipo_fonte=tipo_fonte or "", comune_fonte="",
                         titolo=titolo or "", testo="", prezzo=prezzo, mq=mq, locali=locali, comune=comune or None)
 
-    def candidati(self, prezzo: Optional[int], mq: Optional[int], tol_pct: float, tol_mq: int, giorni: int,
-                  escludi: str) -> List[Tuple[str, str, Annuncio]]:
+    def candidati(self, prezzo: int | None, mq: int | None, tol_pct: float, tol_mq: int, giorni: int,
+                  escludi: str) -> list[tuple[str, str, Annuncio]]:
         """Annunci gia' noti che potrebbero essere lo stesso immobile: (uid, gruppo, annuncio)."""
         dal = (datetime.now() - timedelta(days=giorni)).strftime(FMT)
         segnaposto = ",".join("?" * len(STATI_NOTI))
@@ -222,7 +221,7 @@ class Archivio:
             out.append((r[0], r[1] or r[0], self._da_riga((r[2],) + tuple(r[0:1]) + tuple(r[3:]))))
         return out
 
-    def in_coda(self) -> List[Annuncio]:
+    def in_coda(self) -> list[Annuncio]:
         righe = self.db.execute("""SELECT dati, uid, url, fonte, tipo_fonte, comune, titolo, prezzo, mq, locali
             FROM annunci WHERE stato='da_inviare' ORDER BY priorita, primo_visto""").fetchall()
         return [self._da_riga(r) for r in righe]
@@ -233,7 +232,7 @@ class Archivio:
                             [(ora, u) for u in uids])
         self.db.commit()
 
-    def altre_fonti(self, gruppo: str, escludi: str) -> List[Tuple[str, str, str]]:
+    def altre_fonti(self, gruppo: str, escludi: str) -> list[tuple[str, str, str]]:
         """(fonte, tipo_fonte, url) degli altri annunci dello stesso immobile."""
         return self.db.execute("SELECT fonte, tipo_fonte, url FROM annunci WHERE gruppo=? AND uid != ? "
                                "ORDER BY primo_visto", (gruppo, escludi)).fetchall()
@@ -250,7 +249,7 @@ class Archivio:
         return dict(self.db.execute("SELECT stato, COUNT(*) FROM annunci GROUP BY stato").fetchall())
 
     # ------------------------------------------------------------------ LLM
-    def uso_llm(self, giorno: str) -> Tuple[int, float]:
+    def uso_llm(self, giorno: str) -> tuple[int, float]:
         r = self.db.execute("SELECT chiamate, costo FROM llm_uso WHERE giorno=?", (giorno,)).fetchone()
         return (r[0], r[1] or 0.0) if r else (0, 0.0)
 
@@ -261,7 +260,7 @@ class Archivio:
                         (giorno, token_in, token_out, costo))
         self.db.commit()
 
-    def cache_llm(self, chiave: str) -> Optional[str]:
+    def cache_llm(self, chiave: str) -> str | None:
         r = self.db.execute("SELECT risposta FROM llm_cache WHERE chiave=?", (chiave,)).fetchone()
         return r[0] if r else None
 

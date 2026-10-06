@@ -1,5 +1,4 @@
 """Comandi del radar (python radar.py --help)."""
-from __future__ import annotations
 
 import argparse
 import csv

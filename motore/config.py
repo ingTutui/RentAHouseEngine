@@ -4,19 +4,13 @@
 - config.local.toml  facoltativo, solo su questo PC: sovrascrive config.toml sezione per sezione
 - .env               segreti (token Telegram, chiave OpenRouter...): mai nel repository
 """
-from __future__ import annotations
 
 import copy
 import os
 import re
 import shutil
+import tomllib
 from pathlib import Path
-from typing import Dict
-
-try:  # Python 3.11+
-    import tomllib
-except ModuleNotFoundError:  # Python 3.9 / 3.10: pip install tomli
-    import tomli as tomllib  # type: ignore
 
 DEFAULT_CFG: dict = {
     "esecuzione": {
@@ -134,8 +128,8 @@ def carica_config(base: Path) -> dict:
     return cfg
 
 
-def leggi_env(path: Path) -> Dict[str, str]:
-    valori: Dict[str, str] = {}
+def leggi_env(path: Path) -> dict[str, str]:
+    valori: dict[str, str] = {}
     if not path.exists():
         return valori
     for riga in path.read_text(encoding="utf-8-sig", errors="replace").splitlines():
@@ -156,7 +150,7 @@ def leggi_env(path: Path) -> Dict[str, str]:
     return valori
 
 
-def carica_segreti(percorsi: Percorsi, cfg: dict) -> Dict[str, str]:
+def carica_segreti(percorsi: Percorsi, cfg: dict) -> dict[str, str]:
     """Valori del file .env; le variabili d'ambiente del sistema hanno la precedenza."""
     env = leggi_env(percorsi.env)
     out = dict(env)
@@ -176,7 +170,7 @@ def carica_segreti(percorsi: Percorsi, cfg: dict) -> Dict[str, str]:
     return out
 
 
-def scrivi_env(percorsi: Percorsi, valori: Dict[str, str]) -> Path:
+def scrivi_env(percorsi: Percorsi, valori: dict[str, str]) -> Path:
     """Aggiorna (o crea) il file .env lasciando com'e' tutto il resto."""
     p = percorsi.env
     if p.exists():

@@ -1,8 +1,6 @@
 """Riconoscimento dei link agli annunci in una pagina di elenco (portali e siti delle agenzie)."""
-from __future__ import annotations
 
 import re
-from typing import Dict, Optional, Tuple
 from urllib.parse import parse_qsl, urlencode, urljoin, urlparse, urlunparse
 
 from bs4 import BeautifulSoup
@@ -32,10 +30,10 @@ DA_SALTARE = ("privacy", "cookie", "contatt", "chi-siamo", "chisiamo", "login", 
 ESTENSIONI_FILE = (".jpg", ".jpeg", ".png", ".gif", ".webp", ".svg", ".pdf", ".zip", ".mp4", ".css", ".js")
 PARAMETRI_INUTILI = re.compile(r"^(utm_|fbclid|gclid|mc_|ref$|source$|from$)")
 
-Trovati = Dict[str, Tuple[str, str, str]]   # uid -> (url, testo della scheda, titolo)
+Trovati = dict[str, tuple[str, str, str]]   # uid -> (url, testo della scheda, titolo)
 
 
-def portale_di(url: str) -> Optional[str]:
+def portale_di(url: str) -> str | None:
     """Portale riconosciuto dall'indirizzo. I mini-siti delle agenzie ospitati dai portali
     (es. nome.agenzie.casa.it) si leggono come siti normali; le vetrine Subito no."""
     host = urlparse(url).netloc.lower()
@@ -87,7 +85,7 @@ def sembra_annuncio(url: str, pagina: str) -> bool:
     return (ha_parola and (ha_id or slug)) or (ha_id and slug)
 
 
-def testo_scheda(a, uid: str, uid_di: Dict[int, str]) -> str:
+def testo_scheda(a, uid: str, uid_di: dict[int, str]) -> str:
     """Testo della 'card' che contiene il link: sale finche' il blocco contiene solo questo annuncio."""
     migliore = a.get_text(" ", strip=True)
     nodo = a

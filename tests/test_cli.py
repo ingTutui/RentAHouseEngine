@@ -1,3 +1,6 @@
+import subprocess
+import sys
+
 from motore.cli import main
 
 from conftest import RADICE
@@ -18,3 +21,16 @@ def test_la_verifica_del_repository_passa(capsys):
     # e' lo stesso controllo che l'aggiornamento automatico fa prima di tenere una versione nuova
     assert main(["--cartella", str(RADICE), "--verifica"]) == 0
     assert "Verifica OK" in capsys.readouterr().out
+
+
+def test_con_un_python_vecchio_esce_con_un_messaggio_chiaro():
+    # finge Python 3.12: il programma deve fermarsi subito, senza errori incomprensibili
+    codice = ("import sys, runpy; sys.version_info = (3, 12, 4, 'final', 0); "
+              "runpy.run_path('radar.py', run_name='__main__')")
+    r = subprocess.run([sys.executable, "-c", codice], cwd=RADICE, capture_output=True, text=True, timeout=60)
+    assert r.returncode == 1
+    assert "richiede Python 3.14" in r.stderr and "Python 3.12" in r.stderr and "python.org" in r.stderr
+
+
+def test_python_in_uso_e_quello_richiesto():
+    assert sys.version_info >= (3, 14), "il progetto e' scritto per Python 3.14 o piu' recente"
