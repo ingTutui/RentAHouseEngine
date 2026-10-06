@@ -198,6 +198,8 @@ inondarti di annunci vecchi.
 
 ```
 radar.py              punto di ingresso
+CLAUDE.md             istruzioni per Claude Code: regole, comandi, mappa del codice
+PIANO.md              piano: requisiti, decisioni e perché, stato, prossimi passi
 config.toml           impostazioni condivise
 llm.toml              modello OpenRouter
 .env.example          modello del file dei segreti

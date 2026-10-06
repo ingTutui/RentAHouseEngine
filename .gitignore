@@ -2,6 +2,9 @@
 .env
 config.local.toml
 
+# materiale di sfondo (ricerche, dati, mappe, richieste originali): solo su questo PC
+contesto/
+
 # dati del radar (archivio, diario, esportazioni)
 stato/
 radar.db
