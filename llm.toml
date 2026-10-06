@@ -1,0 +1,16 @@
+# Modello usato dal radar tramite OpenRouter (https://openrouter.ai/models).
+# Lo usa per leggere le schede degli annunci delle agenzie (prezzo, metratura, comune, riassunto)
+# e per decidere i doppioni incerti. Se il modello e' vuoto il radar funziona lo stesso, senza LLM.
+#
+# La chiave NON va qui ma nel file .env:   OPENROUTER_API_KEY=sk-or-...
+
+modello = ""                  # es. "fornitore/nome-del-modello", come scritto su openrouter.ai/models
+modelli_riserva = []          # facoltativo: provati in ordine se il primo non risponde
+temperatura = 0
+max_token = 1500              # risposta massima; con i modelli che "ragionano" serve di piu'
+timeout_sec = 60
+
+# Facoltativo: preferenze di instradamento di OpenRouter, passate cosi' come sono
+# [provider]
+# sort = "price"
+# data_collection = "deny"
