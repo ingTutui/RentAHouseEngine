@@ -157,8 +157,9 @@ Archivio, diario (`radar.log`) ed esportazioni stanno nella cartella `stato/`, c
 
 ## Come ragiona il radar
 
-1. **Legge** ogni fonte (in parallelo fonti diverse, una per volta lo stesso sito, con pause). Prima Immobiliare.it,
-   poi gli altri portali, poi le agenzie, così un annuncio presente anche sul portale viene riconosciuto.
+1. **Legge** ogni fonte (in parallelo fonti diverse, una per volta lo stesso sito, con una pausa tra le richieste:
+   il carico di una persona che naviga) e rispetta il `robots.txt` di ogni sito. Prima Immobiliare.it, poi gli
+   altri portali, poi le agenzie, così un annuncio presente anche sul portale viene riconosciuto.
 2. **Estrae** prezzo, metri quadri, locali, comune. Se nell'elenco mancano, apre la scheda dell'annuncio e li legge
    dai dati strutturati della pagina; se serve chiede all'LLM. I numeri dell'LLM valgono solo se compaiono
    davvero nel testo della pagina.
