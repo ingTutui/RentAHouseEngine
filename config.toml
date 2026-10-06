@@ -1,0 +1,43 @@
+# Radar Affitti - impostazioni
+# Modifica i valori a destra del segno "=". Le righe che iniziano con # sono commenti.
+
+[telegram]
+# Li compila da solo il comando:  python radar.py --telegram-setup
+token = ""
+chat_id = ""
+
+[esecuzione]
+intervallo_minuti = 30              # usato da "python radar.py --loop 30"
+pausa_stesso_sito_sec = 4           # pausa minima tra due richieste allo stesso sito
+timeout_sec = 25
+usa_browser_per_js = true           # per i siti che caricano gli annunci in JavaScript (serve Playwright)
+pagine_iniziali_immobiliare = 30    # al primo avvio legge tutte le pagine di Immobiliare.it per comune
+pagine_ordinarie_immobiliare = 1    # poi solo la prima (i piu' recenti)
+max_messaggi_singoli = 15           # oltre questo numero arriva un unico riepilogo
+notifica_prima_esecuzione = false   # al primo controllo di una fonte salva tutto senza avvisarti
+avvisa_fonte_ko_dopo = 3            # avviso Telegram se una fonte fallisce N volte di fila
+connessioni_parallele = 6           # siti diversi letti in parallelo (lo stesso sito sempre uno alla volta)
+
+[filtri]
+prezzo_min = 0                      # 0 = nessun limite
+prezzo_max = 0                      # es. 1000 per ricevere solo affitti fino a 1000 euro
+mq_min = 0
+locali_min = 0                      # es. 2 per escludere i monolocali
+escludi_stanze = false              # true per non ricevere stanze e posti letto
+prezzo_affitto_plausibile_max = 6000
+tipi_esclusi = ["negozio", "ufficio", "capannone", "magazzino", "laboratorio", "terreno",
+                "garage", "box", "posto auto", "locale commerciale"]
+# frazioni e comuni vicini fuori dalla tua area: se un annuncio li cita viene segnalato
+zone_fuori_area = ["Limidi", "Sozzigalli", "Manzolino", "Riolo", "Piumazzo", "Cavazzona", "Redù",
+                   "Via Larga", "Carpi", "Correggio", "Bomporto", "Sorbara", "Ravarino", "Vignola",
+                   "Savignano", "Scandiano", "Castellarano", "Serramazzoni"]
+zone_fuori_area_azione = "segnala"  # "segnala" oppure "scarta"
+
+[idealista]
+# Solo API ufficiale: chiedi le chiavi su https://developers.idealista.com/access-request
+api_key = ""
+api_secret = ""
+centro = "44.6471,10.9252"          # Modena centro
+raggio_metri = 16000
+since_date = "T"                    # T = pubblicati nell'ultimo giorno
+ogni_ore = 12                       # le chiamate gratuite sono poche: una ricerca ogni 12 ore

@@ -1,0 +1,69 @@
+﻿attiva;portale;comune;url;note
+sì;Immobiliare.it;Modena;https://www.immobiliare.it/affitto-case/modena/?criterio=dataModifica&ordine=desc;&pag=N (25 annunci/pagina), tutte le pagine leggibili
+sì;Casa.it;Modena;https://www.casa.it/affitto/residenziale/modena/?sortType=date_desc;solo pagina 1 (le pagine successive sono vietate da robots.txt)
+sì;Subito.it;Modena;https://www.subito.it/annunci-emilia-romagna/affitto/appartamenti/modena/modena/;"solo pagina 1 (?o=2 vietato da robots.txt); già ordinato dal più recente"
+sì;Wikicasa;Modena;https://www.wikicasa.it/affitto-case/modena/;?p=N (20 annunci/pagina)
+sì;Immobiliare.it;Formigine;https://www.immobiliare.it/affitto-case/formigine/?criterio=dataModifica&ordine=desc;&pag=N (25 annunci/pagina), tutte le pagine leggibili
+sì;Casa.it;Formigine;https://www.casa.it/affitto/residenziale/formigine/?sortType=date_desc;solo pagina 1 (le pagine successive sono vietate da robots.txt)
+sì;Subito.it;Formigine;https://www.subito.it/annunci-emilia-romagna/affitto/appartamenti/modena/formigine/;"solo pagina 1 (?o=2 vietato da robots.txt); già ordinato dal più recente"
+sì;Wikicasa;Formigine;https://www.wikicasa.it/affitto-case/formigine/;?p=N (20 annunci/pagina)
+sì;Immobiliare.it;Sassuolo;https://www.immobiliare.it/affitto-case/sassuolo/?criterio=dataModifica&ordine=desc;&pag=N (25 annunci/pagina), tutte le pagine leggibili
+sì;Casa.it;Sassuolo;https://www.casa.it/affitto/residenziale/sassuolo/?sortType=date_desc;solo pagina 1 (le pagine successive sono vietate da robots.txt)
+sì;Subito.it;Sassuolo;https://www.subito.it/annunci-emilia-romagna/affitto/appartamenti/modena/sassuolo/;"solo pagina 1 (?o=2 vietato da robots.txt); già ordinato dal più recente"
+sì;Wikicasa;Sassuolo;https://www.wikicasa.it/affitto-case/sassuolo/;?p=N (20 annunci/pagina)
+sì;Immobiliare.it;Maranello;https://www.immobiliare.it/affitto-case/maranello/?criterio=dataModifica&ordine=desc;&pag=N (25 annunci/pagina), tutte le pagine leggibili
+sì;Casa.it;Maranello;https://www.casa.it/affitto/residenziale/maranello/?sortType=date_desc;solo pagina 1 (le pagine successive sono vietate da robots.txt)
+sì;Subito.it;Maranello;https://www.subito.it/annunci-emilia-romagna/affitto/appartamenti/modena/maranello/;"solo pagina 1 (?o=2 vietato da robots.txt); già ordinato dal più recente"
+sì;Wikicasa;Maranello;https://www.wikicasa.it/affitto-case/maranello/;?p=N (20 annunci/pagina)
+sì;Immobiliare.it;Castelfranco Emilia;https://www.immobiliare.it/affitto-case/castelfranco-emilia/?criterio=dataModifica&ordine=desc;&pag=N (25 annunci/pagina), tutte le pagine leggibili
+sì;Casa.it;Castelfranco Emilia;https://www.casa.it/affitto/residenziale/castelfranco-emilia/?sortType=date_desc;solo pagina 1 (le pagine successive sono vietate da robots.txt)
+sì;Subito.it;Castelfranco Emilia;https://www.subito.it/annunci-emilia-romagna/affitto/appartamenti/modena/castelfranco-emilia/;"solo pagina 1 (?o=2 vietato da robots.txt); già ordinato dal più recente"
+sì;Wikicasa;Castelfranco Emilia;https://www.wikicasa.it/affitto-case/castelfranco-emilia/;?p=N (20 annunci/pagina)
+sì;Immobiliare.it;Fiorano Modenese;https://www.immobiliare.it/affitto-case/fiorano-modenese/?criterio=dataModifica&ordine=desc;&pag=N (25 annunci/pagina), tutte le pagine leggibili
+sì;Casa.it;Fiorano Modenese;https://www.casa.it/affitto/residenziale/fiorano-modenese/?sortType=date_desc;solo pagina 1 (le pagine successive sono vietate da robots.txt)
+sì;Subito.it;Fiorano Modenese;https://www.subito.it/annunci-emilia-romagna/affitto/appartamenti/modena/fiorano-modenese/;"solo pagina 1 (?o=2 vietato da robots.txt); già ordinato dal più recente"
+sì;Wikicasa;Fiorano Modenese;https://www.wikicasa.it/affitto-case/fiorano-modenese/;?p=N (20 annunci/pagina)
+sì;Immobiliare.it;Castelnuovo Rangone;https://www.immobiliare.it/affitto-case/castelnuovo-rangone/?criterio=dataModifica&ordine=desc;&pag=N (25 annunci/pagina), tutte le pagine leggibili
+sì;Casa.it;Castelnuovo Rangone;https://www.casa.it/affitto/residenziale/castelnuovo-rangone/?sortType=date_desc;solo pagina 1 (le pagine successive sono vietate da robots.txt)
+sì;Subito.it;Castelnuovo Rangone;https://www.subito.it/annunci-emilia-romagna/affitto/appartamenti/modena/castelnuovo-rangone/;"solo pagina 1 (?o=2 vietato da robots.txt); già ordinato dal più recente"
+sì;Wikicasa;Castelnuovo Rangone;https://www.wikicasa.it/affitto-case/castelnuovo-rangone/;?p=N (20 annunci/pagina)
+sì;Immobiliare.it;Castelvetro di Modena;https://www.immobiliare.it/affitto-case/castelvetro-di-modena/?criterio=dataModifica&ordine=desc;&pag=N (25 annunci/pagina), tutte le pagine leggibili
+sì;Casa.it;Castelvetro di Modena;https://www.casa.it/affitto/residenziale/castelvetro-di-modena/?sortType=date_desc;solo pagina 1 (le pagine successive sono vietate da robots.txt)
+sì;Subito.it;Castelvetro di Modena;https://www.subito.it/annunci-emilia-romagna/affitto/appartamenti/modena/castelvetro-di-modena/;"solo pagina 1 (?o=2 vietato da robots.txt); già ordinato dal più recente"
+sì;Wikicasa;Castelvetro di Modena;https://www.wikicasa.it/affitto-case/castelvetro-di-modena/;?p=N (20 annunci/pagina)
+sì;Immobiliare.it;Spilamberto;https://www.immobiliare.it/affitto-case/spilamberto/?criterio=dataModifica&ordine=desc;&pag=N (25 annunci/pagina), tutte le pagine leggibili
+sì;Casa.it;Spilamberto;https://www.casa.it/affitto/residenziale/spilamberto/?sortType=date_desc;solo pagina 1 (le pagine successive sono vietate da robots.txt)
+sì;Subito.it;Spilamberto;https://www.subito.it/annunci-emilia-romagna/affitto/appartamenti/modena/spilamberto/;"solo pagina 1 (?o=2 vietato da robots.txt); già ordinato dal più recente"
+sì;Wikicasa;Spilamberto;https://www.wikicasa.it/affitto-case/spilamberto/;?p=N (20 annunci/pagina)
+sì;Immobiliare.it;San Cesario sul Panaro;https://www.immobiliare.it/affitto-case/san-cesario-sul-panaro/?criterio=dataModifica&ordine=desc;&pag=N (25 annunci/pagina), tutte le pagine leggibili
+sì;Casa.it;San Cesario sul Panaro;https://www.casa.it/affitto/residenziale/san-cesario-sul-panaro/?sortType=date_desc;solo pagina 1 (le pagine successive sono vietate da robots.txt)
+sì;Subito.it;San Cesario sul Panaro;https://www.subito.it/annunci-emilia-romagna/affitto/appartamenti/modena/san-cesario-sul-panaro/;"solo pagina 1 (?o=2 vietato da robots.txt); già ordinato dal più recente"
+sì;Wikicasa;San Cesario sul Panaro;https://www.wikicasa.it/affitto-case/san-cesario-sul-panaro/;?p=N (20 annunci/pagina)
+sì;Immobiliare.it;Nonantola;https://www.immobiliare.it/affitto-case/nonantola/?criterio=dataModifica&ordine=desc;&pag=N (25 annunci/pagina), tutte le pagine leggibili
+sì;Casa.it;Nonantola;https://www.casa.it/affitto/residenziale/nonantola/?sortType=date_desc;solo pagina 1 (le pagine successive sono vietate da robots.txt)
+sì;Subito.it;Nonantola;https://www.subito.it/annunci-emilia-romagna/affitto/appartamenti/modena/nonantola/;"solo pagina 1 (?o=2 vietato da robots.txt); già ordinato dal più recente"
+sì;Wikicasa;Nonantola;https://www.wikicasa.it/affitto-case/nonantola/;?p=N (20 annunci/pagina)
+sì;Immobiliare.it;Campogalliano;https://www.immobiliare.it/affitto-case/campogalliano/?criterio=dataModifica&ordine=desc;&pag=N (25 annunci/pagina), tutte le pagine leggibili
+sì;Casa.it;Campogalliano;https://www.casa.it/affitto/residenziale/campogalliano/?sortType=date_desc;solo pagina 1 (le pagine successive sono vietate da robots.txt)
+sì;Subito.it;Campogalliano;https://www.subito.it/annunci-emilia-romagna/affitto/appartamenti/modena/campogalliano/;"solo pagina 1 (?o=2 vietato da robots.txt); già ordinato dal più recente"
+sì;Wikicasa;Campogalliano;https://www.wikicasa.it/affitto-case/campogalliano/;?p=N (20 annunci/pagina)
+sì;Immobiliare.it;Soliera;https://www.immobiliare.it/affitto-case/soliera/?criterio=dataModifica&ordine=desc;&pag=N (25 annunci/pagina), tutte le pagine leggibili
+sì;Casa.it;Soliera;https://www.casa.it/affitto/residenziale/soliera/?sortType=date_desc;solo pagina 1 (le pagine successive sono vietate da robots.txt)
+sì;Subito.it;Soliera;https://www.subito.it/annunci-emilia-romagna/affitto/appartamenti/modena/soliera/;"solo pagina 1 (?o=2 vietato da robots.txt); già ordinato dal più recente"
+sì;Wikicasa;Soliera;https://www.wikicasa.it/affitto-case/soliera/;?p=N (20 annunci/pagina)
+sì;Immobiliare.it;Bastiglia;https://www.immobiliare.it/affitto-case/bastiglia/?criterio=dataModifica&ordine=desc;&pag=N (25 annunci/pagina), tutte le pagine leggibili
+sì;Casa.it;Bastiglia;https://www.casa.it/affitto/residenziale/bastiglia/?sortType=date_desc;solo pagina 1 (le pagine successive sono vietate da robots.txt)
+sì;Subito.it;Bastiglia;https://www.subito.it/annunci-emilia-romagna/affitto/appartamenti/modena/bastiglia/;"solo pagina 1 (?o=2 vietato da robots.txt); già ordinato dal più recente"
+sì;Wikicasa;Bastiglia;https://www.wikicasa.it/affitto-case/bastiglia/;?p=N (20 annunci/pagina)
+sì;Immobiliare.it;Rubiera;https://www.immobiliare.it/affitto-case/rubiera/?criterio=dataModifica&ordine=desc;&pag=N (25 annunci/pagina), tutte le pagine leggibili
+sì;Casa.it;Rubiera;https://www.casa.it/affitto/residenziale/rubiera/?sortType=date_desc;solo pagina 1 (le pagine successive sono vietate da robots.txt)
+sì;Subito.it;Rubiera;https://www.subito.it/annunci-emilia-romagna/affitto/appartamenti/reggio-emilia/rubiera/;"solo pagina 1 (?o=2 vietato da robots.txt); già ordinato dal più recente"
+sì;Wikicasa;Rubiera;https://www.wikicasa.it/affitto-case/rubiera/;?p=N (20 annunci/pagina)
+sì;Immobiliare.it;San Martino in Rio;https://www.immobiliare.it/affitto-case/san-martino-in-rio/?criterio=dataModifica&ordine=desc;&pag=N (25 annunci/pagina), tutte le pagine leggibili
+sì;Casa.it;San Martino in Rio;https://www.casa.it/affitto/residenziale/san-martino-in-rio/?sortType=date_desc;solo pagina 1 (le pagine successive sono vietate da robots.txt)
+sì;Subito.it;San Martino in Rio;https://www.subito.it/annunci-emilia-romagna/affitto/appartamenti/reggio-emilia/san-martino-in-rio/;"solo pagina 1 (?o=2 vietato da robots.txt); già ordinato dal più recente"
+sì;Wikicasa;San Martino in Rio;https://www.wikicasa.it/affitto-case/san-martino-in-rio/;?p=N (20 annunci/pagina)
+sì;Immobiliare.it;Casalgrande;https://www.immobiliare.it/affitto-case/casalgrande/?criterio=dataModifica&ordine=desc;&pag=N (25 annunci/pagina), tutte le pagine leggibili
+sì;Casa.it;Casalgrande;https://www.casa.it/affitto/residenziale/casalgrande/?sortType=date_desc;solo pagina 1 (le pagine successive sono vietate da robots.txt)
+sì;Subito.it;Casalgrande;https://www.subito.it/annunci-emilia-romagna/affitto/appartamenti/reggio-emilia/casalgrande/;"solo pagina 1 (?o=2 vietato da robots.txt); già ordinato dal più recente"
+sì;Wikicasa;Casalgrande;https://www.wikicasa.it/affitto-case/casalgrande/;?p=N (20 annunci/pagina)

@@ -1,0 +1,13 @@
+# segreti e dati locali: non vanno mai nel repository
+.env
+config.local.toml
+radar.db
+radar.db-*
+*.log
+radar_console.log
+annunci_visti.csv
+__pycache__/
+*.pyc
+.venv/
+venv/
+.pytest_cache/
