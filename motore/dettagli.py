@@ -9,11 +9,9 @@ import json
 import logging
 import re
 
-from bs4 import BeautifulSoup
-
 from .analisi import Annuncio, aggiorna_area, e_stanza, leggi_numeri
 from .comuni import comune_ufficiale, trova_luogo
-from .estrazione import PARSER
+from .estrazione import leggi_html
 
 log = logging.getLogger("radar")
 MAX_TESTO = 7000
@@ -144,7 +142,7 @@ def dati_strutturati(soup) -> dict:
 
 def leggi_pagina(html: str) -> tuple[str, dict]:
     """(testo principale della pagina, intestazioni e dati strutturati)."""
-    soup = BeautifulSoup(html, PARSER)
+    soup = leggi_html(html)
     meta = {"strutturati": dati_strutturati(soup)}
     if soup.title:
         meta["titolo"] = _testo(soup.title)[:200]

@@ -23,43 +23,56 @@ PC dove programmi ── push del ramo ──▶ GitHub ── pull request ─�
                                                                                          │
 PC sempre acceso: ogni 30 minuti  python radar.py --servizio  ◀──── scarica main ───────┘
     1. git fetch + merge (solo avanzamento: non sovrascrive niente)
-    2. python radar.py --verifica sul codice nuovo
-    3. se la verifica fallisce torna alla versione di prima e non riprova quella
-    4. fa il controllo e consegna i messaggi
+    2. se sono cambiate le librerie (pyproject.toml, uv.lock): uv sync le allinea
+    3. python radar.py --verifica sul codice nuovo
+    4. se qualcosa non va torna alla versione di prima (codice e librerie)
+    5. fa il controllo e consegna i messaggi
 ```
 
 Il radar gira **solo** sul PC sempre acceso. Sul PC di sviluppo si programma e si prova.
 
 ## Installazione sul PC sempre acceso
 
-Servono **Python 3.14** (https://www.python.org/downloads/) e Git. Nei comandi che seguono `python` è il
-Python 3.14; su Windows, se `python` non c'è o è una versione più vecchia, scrivi `py -3.14`.
+Servono **uv** e **Git**. uv è il programma che prepara Python e le librerie: legge `.python-version` e
+`pyproject.toml`, scarica da solo Python 3.14 se sul PC non c'è (o c'è una versione più vecchia) e crea l'ambiente
+`.venv` dentro la cartella del progetto, con le versioni esatte di `uv.lock`. Non serve installare Python a mano.
+
+Installa uv, una volta sola:
+
+- Windows: `winget install --id=astral-sh.uv -e` (oppure, in PowerShell,
+  `powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"`)
+- Mac: `brew install uv`
+- Linux e Mac: `curl -LsSf https://astral.sh/uv/install.sh | sh`
+
+Poi, in un terminale nuovo (così trova uv):
 
 ```bash
 git clone https://github.com/ingTutui/RentAHouseEngine.git
 cd RentAHouseEngine
-python -m pip install -r requirements.txt
+uv sync
 ```
 
-Su Linux e Mac usa un ambiente virtuale (`python3.14 -m venv .venv`, poi `.venv/bin/python -m pip install -r
-requirements.txt` e lancia i comandi con `.venv/bin/python`): l'avvio automatico usa lo stesso Python con cui lo installi.
+`uv sync` crea `.venv` con Python 3.14 e le librerie. Da qui in avanti ogni comando comincia con `uv run`
+(`uv run python radar.py --stato`): uv controlla ogni volta che l'ambiente sia in ordine e usa quello giusto.
 
 1. **Segreti.** Copia `.env.example` in `.env`. Il file resta solo su questo PC (è escluso da git).
-2. **Telegram.** `python radar.py --telegram-setup`: ti guida a creare il bot con @BotFather, trova da solo il
+2. **Telegram.** `uv run python radar.py --telegram-setup`: ti guida a creare il bot con @BotFather, trova da solo il
    tuo chat id e scrive token e chat id in `.env`. Ti arriva un messaggio di prova.
 3. **OpenRouter** (facoltativo). Scrivi la chiave in `.env` (`OPENROUTER_API_KEY=...`) e il modello in `llm.toml`
    (`modello = "..."`). Se preferisci un file tuo, indicalo in `.env` con `LLM_CONFIG=percorso/del/file`
-   (TOML o JSON). Prova con `python radar.py --prova-llm`.
-4. **Primo controllo.** `python radar.py`. Per ogni fonte, la prima lettura salva quello che c'è già online come
+   (TOML o JSON). Prova con `uv run python radar.py --prova-llm`.
+4. **Primo controllo.** `uv run python radar.py`. Per ogni fonte, la prima lettura salva quello che c'è già online come
    "visto" **senza avvisarti**: altrimenti ti arriverebbero centinaia di annunci vecchi. Se vuoi invece vedere
    subito anche quelli già online che rispettano i filtri (arrivano in un unico elenco), crea `config.local.toml`
    con `[esecuzione]` e `notifica_prima_esecuzione = true` prima di questo passo.
 5. **Avvio automatico ogni 30 minuti.**
-   - Windows: doppio clic su `installa\windows_avvio_automatico.bat`. L'attività parte quando sei collegato
-     (utente connesso): lascia il PC con l'utente sempre collegato e disattiva la sospensione.
+   - Windows: doppio clic su `installa\windows_avvio_automatico.bat`. L'attività usa il Python di `.venv` e parte
+     quando sei collegato (utente connesso): lascia il PC con l'utente sempre collegato e disattiva la sospensione.
      Per toglierla: `installa\windows_togli_avvio.bat`.
    - Linux o Mac: `sh installa/linux_mac_avvio_automatico.sh` (usa cron).
-6. **Controllo.** `python radar.py --stato` mostra annunci visti, coda, stato dell'LLM e fonti con problemi.
+   - A mano, equivale a `uv run python radar.py --installa-avvio` (con altri comandi non funziona: l'avvio
+     deve usare il Python di `.venv`).
+6. **Controllo.** `uv run python radar.py --stato` mostra annunci visti, coda, stato dell'LLM e fonti con problemi.
 
 Non modificare il codice direttamente su questo PC. L'aggiornamento automatico non cancella mai niente: se qui
 ci sono commit che non sono su GitHub, o modifiche in conflitto con la versione nuova, si salta (e lo scrive nel
@@ -75,30 +88,39 @@ la versione che ha.
 ```bash
 git clone https://github.com/ingTutui/RentAHouseEngine.git
 cd RentAHouseEngine
-python -m pip install -r requirements-dev.txt
-python -m pytest            # tutti i test (usano siti, Telegram e OpenRouter finti: niente rete)
-python -m ruff check .      # controllo dello stile
-python radar.py --verifica  # la stessa autoverifica che fa l'aggiornamento automatico
+uv sync                         # .venv con Python 3.14 e le librerie, pytest e ruff compresi
+uv run pytest                   # tutti i test (usano siti, Telegram e OpenRouter finti: niente rete)
+uv run ruff check .             # controllo dello stile
+uv run python radar.py --verifica   # la stessa autoverifica che fa l'aggiornamento automatico
 ```
 
 - Lascia vuoti `TELEGRAM_TOKEN` e `TELEGRAM_CHAT_ID` in `.env`: i messaggi compaiono solo a schermo e non
   duplichi quelli del PC sempre acceso (che ha un archivio suo).
 - Non installare l'avvio automatico su questo PC. Se vuoi comunque impedire gli aggiornamenti, crea
   `config.local.toml` con `[aggiornamento]` e `automatico = false`.
-- Per provare una fonte senza salvare niente: `python radar.py --prova "nome agenzia"` (con `--dettagli` legge
+- Per provare una fonte senza salvare niente: `uv run python radar.py --prova "nome agenzia"` (con `--dettagli` legge
   anche le schede dei primi annunci).
 
-**Per cambiare qualcosa:** crea un ramo (`git switch -c nome-modifica`), modifica, esegui `python -m pytest`,
+**Per cambiare qualcosa:** crea un ramo (`git switch -c nome-modifica`), modifica, esegui `uv run pytest`,
 poi `git push -u origin nome-modifica` e apri la pull request su GitHub. Quando premi **Merge**, entro 30 minuti
-la modifica è sul PC sempre acceso.
+la modifica è sul PC sempre acceso. Per aggiungere una libreria: `uv add nome` (aggiorna `pyproject.toml` e `uv.lock`,
+che vanno nello stesso commit).
 
-## Python e librerie
+## Python e librerie (uv)
 
-- Il progetto è scritto per **Python 3.14**. Con una versione più vecchia `radar.py` si ferma subito con un
-  messaggio chiaro, e l'aggiornamento automatico non tiene una versione che non supera `--verifica`.
-- Le librerie in `requirements.txt` hanno come minimo le versioni più recenti (requests 2.34, beautifulsoup4 4.15,
-  lxml 6.1; pytest 9.1 e ruff 0.16 per lo sviluppo). Per aggiornarle: `python -m pip install -U -r requirements.txt`.
-  Quando alzi i minimi in `requirements.txt` e il PC sempre acceso scarica la modifica, installa da solo le nuove versioni.
+- Il progetto è gestito con **uv**. `.python-version` (3.14) e `requires-python` in `pyproject.toml` dicono quale
+  Python serve: `uv sync` lo cerca sul PC e, se manca o è più vecchio, lo scarica. L'ambiente è `.venv` nella
+  cartella del progetto (git lo ignora). Non c'è più `requirements.txt`.
+- Le librerie sono in `pyproject.toml` (minimi: requests 2.34, beautifulsoup4 4.15, lxml 6.1; pytest 9.1 e ruff 0.16
+  per lo sviluppo) e le versioni esatte in `uv.lock`, che sta nel repository: tutti i PC usano le stesse.
+- Per aggiornarle: `uv lock --upgrade`, poi `uv sync`, `uv run pytest`, e `pyproject.toml` con `uv.lock` nello stesso
+  commit. Quando arrivano su `main`, il PC sempre acceso li scarica e `uv sync` allinea da solo `.venv`; se la
+  verifica poi non passa, torna indietro anche con le librerie. Se non riesce ad allinearle (rete assente, uv
+  mancante) annulla l'aggiornamento e riprova al controllo dopo.
+- Cambiare versione di Python (per esempio 3.15) si fa a mano sul PC sempre acceso: `git pull`, poi `uv sync`, che
+  ricrea `.venv`. L'aggiornamento automatico non lo fa: su Windows non può sostituire l'interprete mentre il radar
+  lo usa.
+- Con un Python più vecchio `radar.py` si ferma subito con un messaggio che indica uv.
 - Il codice usa solo la libreria standard per leggere i file TOML (`tomllib`) e le annotazioni di tipo native di
   Python 3.14: niente `tomli`, niente `from __future__`.
 
@@ -137,21 +159,21 @@ silenzio_dalle = "23:00"
 
 | Comando | Cosa fa |
 |---|---|
-| `python radar.py` | Un controllo di tutte le fonti. |
-| `python radar.py --servizio` | Quello che lancia l'avvio automatico: aggiorna da GitHub, verifica, controlla. |
-| `python radar.py --loop 30` | Un controllo ogni 30 minuti restando aperto (alternativa all'avvio automatico). |
-| `python radar.py --stato` | Annunci visti, coda, LLM, fonti con problemi. |
-| `python radar.py --coda` | Gli annunci in attesa di essere inviati (per esempio durante il silenzio). |
-| `python radar.py --invia-ora` | Controlla e invia la coda anche se è orario di silenzio. |
-| `python radar.py --senza-telegram` | Mostra i messaggi a schermo invece di mandarli. |
-| `python radar.py --solo agenzia` | Solo siti delle agenzie (oppure `--solo portale`). |
-| `python radar.py --fonte testo` | Solo le fonti il cui nome o indirizzo contiene il testo. |
-| `python radar.py --prova "nome"` | Mostra cosa estrae da una fonte, senza salvare. |
-| `python radar.py --prova-llm` | Controlla chiave OpenRouter e modello. |
-| `python radar.py --telegram-setup` | Collega il bot Telegram. |
-| `python radar.py --esporta` | Salva tutti gli annunci visti in `stato/annunci_visti.csv`. |
-| `python radar.py --verifica` | Autoverifica del codice. |
-| `python radar.py --installa-avvio` / `--togli-avvio` | Installa o toglie il controllo automatico. |
+| `uv run python radar.py` | Un controllo di tutte le fonti. |
+| `uv run python radar.py --servizio` | Quello che lancia l'avvio automatico: aggiorna da GitHub, verifica, controlla. |
+| `uv run python radar.py --loop 30` | Un controllo ogni 30 minuti restando aperto (alternativa all'avvio automatico). |
+| `uv run python radar.py --stato` | Annunci visti, coda, LLM, fonti con problemi. |
+| `uv run python radar.py --coda` | Gli annunci in attesa di essere inviati (per esempio durante il silenzio). |
+| `uv run python radar.py --invia-ora` | Controlla e invia la coda anche se è orario di silenzio. |
+| `uv run python radar.py --senza-telegram` | Mostra i messaggi a schermo invece di mandarli. |
+| `uv run python radar.py --solo agenzia` | Solo siti delle agenzie (oppure `--solo portale`). |
+| `uv run python radar.py --fonte testo` | Solo le fonti il cui nome o indirizzo contiene il testo. |
+| `uv run python radar.py --prova "nome"` | Mostra cosa estrae da una fonte, senza salvare. |
+| `uv run python radar.py --prova-llm` | Controlla chiave OpenRouter e modello. |
+| `uv run python radar.py --telegram-setup` | Collega il bot Telegram. |
+| `uv run python radar.py --esporta` | Salva tutti gli annunci visti in `stato/annunci_visti.csv`. |
+| `uv run python radar.py --verifica` | Autoverifica del codice. |
+| `uv run python radar.py --installa-avvio` / `--togli-avvio` | Installa o toglie il controllo automatico. |
 
 Archivio, diario (`radar.log`) ed esportazioni stanno nella cartella `stato/`, che git ignora.
 
@@ -170,7 +192,7 @@ Archivio, diario (`radar.log`) ed esportazioni stanno nella cartella `stato/`, c
    dell'agenzia (il tuo vantaggio), poi quelli dei portali. Il messaggio dice se l'annuncio non è ancora su
    Immobiliare.it e dove altro compare. Se Telegram non risponde, gli annunci restano in coda.
 6. Un annuncio ha sempre uno stato: `base` (c'era già alla prima lettura), `scartato`, `doppione`,
-   `da_inviare`, `inviato`. Con `python radar.py --esporta` li vedi tutti con il motivo.
+   `da_inviare`, `inviato`. Con `uv run python radar.py --esporta` li vedi tutti con il motivo.
 
 Se un'agenzia rifà il sito e tutti i link cambiano, il radar se ne accorge e li salva come già visti, senza
 inondarti di annunci vecchi.
@@ -181,18 +203,21 @@ inondarti di annunci vecchi.
 - **Idealista:** solo con l'API ufficiale. Se ti danno le chiavi (https://developers.idealista.com/access-request),
   mettile in `.env` (`IDEALISTA_API_KEY`, `IDEALISTA_API_SECRET`); il radar la interroga ogni 12 ore.
 - **Siti che caricano gli annunci in JavaScript:** per quelli segnati `js` nel CSV serve Playwright
-  (`python -m pip install playwright`, poi `python -m playwright install chromium`). Senza, il radar li legge senza browser
+  (`uv sync --extra browser`, poi `uv run playwright install chromium`). Senza, il radar li legge senza browser
   e quasi sempre non vede gli annunci: compaiono tra le fonti "senza annunci" in `--stato`.
 
 ## Se qualcosa non va
 
-- Nessun messaggio ma ti aspetti novità: `python radar.py --coda` (potrebbero essere in coda per il silenzio) e
-  `python radar.py --stato`.
+- `uv` non trovato: installalo (vedi sopra) e apri un terminale nuovo. Per controllare quale Python usa:
+  `uv run python --version` (deve dire 3.14); se uv non lo scarica da solo, `uv python install 3.14`.
+- Nessun messaggio ma ti aspetti novità: `uv run python radar.py --coda` (potrebbero essere in coda per il silenzio) e
+  `uv run python radar.py --stato`.
 - Telegram non risponde: controlla `TELEGRAM_TOKEN` e `TELEGRAM_CHAT_ID` in `.env`, oppure rilancia
   `--telegram-setup`.
-- Una fonte non estrae niente: `python radar.py --prova "nome"`; il diario è in `stato/radar.log`.
+- Una fonte non estrae niente: `uv run python radar.py --prova "nome"`; il diario è in `stato/radar.log`.
 - Aggiornamento non riuscito: `--stato` mostra l'ultimo errore. La versione che non ha superato la verifica
-  non viene riprovata finché non ne arriva una nuova.
+  non viene riprovata finché non ne arriva una nuova. Se l'errore è «librerie non allineate» riprova da solo al
+  controllo dopo; per farlo subito: `uv sync` nella cartella del progetto.
 
 ## Struttura
 
@@ -203,17 +228,20 @@ PIANO.md              piano: requisiti, decisioni e perché, stato, prossimi pas
 config.toml           impostazioni condivise
 llm.toml              modello OpenRouter
 .env.example          modello del file dei segreti
-requirements.txt      librerie (requirements-dev.txt: anche pytest e ruff); .python-version: 3.14
+pyproject.toml        librerie e impostazioni degli strumenti (uv, pytest, ruff)
+uv.lock               versioni esatte delle librerie (la scrive uv: non modificarlo a mano)
+.python-version       3.14: il Python che sceglie uv
+.venv/                ambiente creato da uv sync (ignorata da git)
 fonti/                elenchi di agenzie e portali (CSV)
 installa/             avvio automatico (Windows, Linux, Mac)
 motore/               codice (config, fonti, rete, estrazione, analisi, doppioni, notifiche, llm, aggiorna, ...)
-tests/                test automatici (python -m pytest)
+tests/                test automatici (uv run pytest)
 stato/                archivio e diario di questo PC (ignorata da git)
 ```
 
 ## Regole del progetto
 
-- Python 3.14 e librerie alle versioni più recenti.
+- Python 3.14 e librerie alle versioni più recenti, gestiti con uv (`pyproject.toml` e `uv.lock` insieme).
 - Token e chiavi stanno solo in `.env`, mai nel codice né su GitHub.
 - Il modello OpenRouter si sceglie in `llm.toml` (o nel file indicato da `LLM_CONFIG`), mai nel codice.
 - Le modifiche passano da una pull request: sul PC sempre acceso arriva solo ciò che è in `main`.

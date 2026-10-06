@@ -3,14 +3,6 @@
 import re
 from urllib.parse import parse_qsl, urlencode, urljoin, urlparse, urlunparse
 
-from bs4 import BeautifulSoup
-
-try:
-    import lxml  # noqa: F401
-    PARSER = "lxml"
-except ImportError:
-    PARSER = "html.parser"
-
 PORTALI = {
     "immobiliare.it": re.compile(r"^https?://(?:www\.)?immobiliare\.it/(?:[a-z]{2}/)?annunci/(\d+)"),
     "casa.it": re.compile(r"^https?://(?:www\.)?casa\.it/immobili/(\d+)"),
@@ -31,6 +23,22 @@ ESTENSIONI_FILE = (".jpg", ".jpeg", ".png", ".gif", ".webp", ".svg", ".pdf", ".z
 PARAMETRI_INUTILI = re.compile(r"^(utm_|fbclid|gclid|mc_|ref$|source$|from$)")
 
 Trovati = dict[str, tuple[str, str, str]]   # uid -> (url, testo della scheda, titolo)
+
+
+def leggi_html(html: str):
+    """BeautifulSoup con il parser migliore disponibile (lxml, altrimenti quello standard).
+
+    bs4 e lxml si importano qui e non in cima al file: aggiorna.py importa archivio, che importa questo modulo, e il
+    processo che aggiorna le librerie con uv non deve averle gia' caricate (su Windows uv non puo' sostituire i file
+    di una libreria in uso).
+    """
+    from bs4 import BeautifulSoup
+    try:
+        import lxml  # noqa: F401
+        parser = "lxml"
+    except ImportError:
+        parser = "html.parser"
+    return BeautifulSoup(html, parser)
 
 
 def portale_di(url: str) -> str | None:
@@ -114,7 +122,7 @@ def titolo_link(a) -> str:
 
 def estrai(html: str, url_pagina: str, pattern: str = "") -> Trovati:
     """Restituisce {uid: (url, testo_scheda, titolo)} per ogni annuncio linkato nella pagina."""
-    soup = BeautifulSoup(html, PARSER)
+    soup = leggi_html(html)
     portale = portale_di(url_pagina)
     regex = re.compile(pattern, re.I) if pattern else None
     candidati = []

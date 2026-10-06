@@ -1,6 +1,7 @@
 import xml.dom.minidom
 from pathlib import Path
 
+from motore import avvio
 from motore.avvio import _xml_windows
 from motore.config import Percorsi, carica_config, carica_segreti, leggi_env, scrivi_env
 
@@ -47,9 +48,15 @@ def test_vecchio_archivio_spostato(tmp_path):
 
 
 def test_attivita_di_windows():
-    x = _xml_windows(r"C:\Users\Zoë\Python\pythonw.exe", Path(r"C:\Users\Zoë\RentAHouseEngine\radar.py"),
-                     Path(r"C:\Users\Zoë\RentAHouseEngine"), 30)
+    x = _xml_windows(r"C:\Users\Zoë\RentAHouseEngine\.venv\Scripts\pythonw.exe",
+                     Path(r"C:\Users\Zoë\RentAHouseEngine\radar.py"), Path(r"C:\Users\Zoë\RentAHouseEngine"), 30)
     dom = xml.dom.minidom.parseString(x.replace('encoding="UTF-16"', ""))
     assert dom.getElementsByTagName("Interval")[0].firstChild.data == "PT30M"
     assert dom.getElementsByTagName("Arguments")[0].firstChild.data.endswith('radar.py" --servizio')
     assert dom.getElementsByTagName("DisallowStartIfOnBatteries")[0].firstChild.data == "false"
+
+
+def test_l_avvio_automatico_si_installa_solo_con_uv(tmp_path, capsys):
+    # tmp_path non ha un .venv: il comando non e' stato lanciato con uv, quindi non tocca ne' cron ne' Windows
+    assert avvio.installa(tmp_path) == 1
+    assert "uv run python radar.py --installa-avvio" in capsys.readouterr().out

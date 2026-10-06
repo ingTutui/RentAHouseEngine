@@ -1,3 +1,30 @@
+[project]
+name = "radar-affitti"
+version = "2.0.0"
+description = "Radar Affitti: legge i siti delle agenzie e i portali e manda su Telegram solo gli annunci in affitto nuovi"
+requires-python = ">=3.14"
+# Versioni minime = le piu' recenti al 6 ottobre 2026. Quelle esatte stanno in uv.lock.
+dependencies = [
+    "requests>=2.34",
+    "beautifulsoup4>=4.15",
+    "lxml>=6.1",
+]
+
+[project.optional-dependencies]
+# facoltativo, per i siti che caricano gli annunci in JavaScript: uv sync --extra browser
+# (poi, una volta sola: uv run playwright install chromium)
+browser = ["playwright>=1.63"]
+
+[dependency-groups]
+# per chi sviluppa: uv sync li installa (e uv run pytest / uv run ruff check . li usa)
+dev = [
+    "pytest>=9.1",
+    "ruff>=0.16",
+]
+
+[tool.uv]
+package = false  # e' un programma da lanciare con uv run, non una libreria da installare
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 

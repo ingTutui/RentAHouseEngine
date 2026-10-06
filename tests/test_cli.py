@@ -29,7 +29,8 @@ def test_con_un_python_vecchio_esce_con_un_messaggio_chiaro():
               "runpy.run_path('radar.py', run_name='__main__')")
     r = subprocess.run([sys.executable, "-c", codice], cwd=RADICE, capture_output=True, text=True, timeout=60)
     assert r.returncode == 1
-    assert "richiede Python 3.14" in r.stderr and "Python 3.12" in r.stderr and "python.org" in r.stderr
+    assert "richiede Python 3.14" in r.stderr and "Python 3.12" in r.stderr
+    assert "uv run python radar.py" in r.stderr and "python.org" in r.stderr   # la strada piu' semplice e l'alternativa
 
 
 def test_python_in_uso_e_quello_richiesto():

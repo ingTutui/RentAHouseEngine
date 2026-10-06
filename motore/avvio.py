@@ -1,7 +1,9 @@
 """Avvio automatico ogni 30 minuti: Utilita' di pianificazione su Windows, crontab su Linux e Mac.
 
-python radar.py --installa-avvio   crea (o sostituisce) l'attivita' "RadarAffitti"
-python radar.py --togli-avvio      la toglie
+uv run python radar.py --installa-avvio   crea (o sostituisce) l'attivita' "RadarAffitti"
+uv run python radar.py --togli-avvio      la toglie
+
+Si lancia con uv: cosi' l'attivita' usa il Python dell'ambiente .venv (quello giusto, con le librerie).
 """
 
 import os
@@ -11,6 +13,8 @@ import tempfile
 from datetime import datetime
 from pathlib import Path
 from xml.sax.saxutils import escape
+
+from .aggiorna import ambiente_di_uv
 
 NOME = "RadarAffitti"
 SEGNO_CRON = "# RadarAffitti"
@@ -61,6 +65,10 @@ def _xml_windows(python: str, script: Path, cartella: Path, minuti: int) -> str:
 
 def installa(cartella: Path, minuti: int = 30) -> int:
     script = cartella / "radar.py"
+    if not ambiente_di_uv(cartella):
+        print("Lancia il comando con uv, cosi' l'avvio automatico usa il Python e le librerie giusti:")
+        print("    uv run python radar.py --installa-avvio")
+        return 1
     if os.name == "nt":
         pythonw = Path(sys.executable).with_name("pythonw.exe")
         python = str(pythonw if pythonw.exists() else Path(sys.executable))
@@ -76,7 +84,7 @@ def installa(cartella: Path, minuti: int = 30) -> int:
             print("Non sono riuscito a creare l'attivita':", (r.stdout + r.stderr).strip())
             return 1
         print(f"Fatto: Windows lancera' il radar ogni {minuti} minuti (attivita' '{NOME}', senza finestre).")
-        print("Funziona mentre sei collegata al PC. Il diario dei controlli e' in stato\\radar.log.")
+        print("Funziona finche' il tuo utente Windows resta collegato. Il diario dei controlli e' in stato\\radar.log.")
         return 0
     riga = f'*/{minuti} * * * * cd "{cartella}" && "{sys.executable}" radar.py --servizio >/dev/null 2>&1 {SEGNO_CRON}'
     attuale = subprocess.run(["crontab", "-l"], capture_output=True, text=True, errors="replace")

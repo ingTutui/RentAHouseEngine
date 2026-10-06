@@ -24,17 +24,19 @@ l'area di ricerca, le mappe, gli elenchi delle agenzie).
 ## Comandi
 
 ```
-python -m pip install -r requirements-dev.txt
-python -m pytest                  # 60 test, circa 40 secondi, nessuna rete (siti, Telegram e OpenRouter finti)
-python -m ruff check .
-python radar.py --verifica        # autoverifica: la usa anche l'aggiornamento automatico
-python radar.py --stato           # archivio, coda, LLM, fonti con problemi
-python radar.py --prova "nome"    # cosa estrae da una fonte, senza salvare (con --dettagli legge anche le schede)
-python radar.py --senza-telegram  # un controllo con i messaggi a schermo
-python radar.py --prova-llm       # controlla chiave OpenRouter e modello
+uv sync                                   # una volta: .venv con Python 3.14 e le librerie (anche pytest e ruff)
+uv run pytest                             # 73 test, circa 40 secondi, nessuna rete (siti, Telegram e OpenRouter finti)
+uv run ruff check .
+uv run python radar.py --verifica         # autoverifica: la usa anche l'aggiornamento automatico
+uv run python radar.py --stato            # archivio, coda, LLM, fonti con problemi
+uv run python radar.py --prova "nome"     # cosa estrae da una fonte, senza salvare (con --dettagli legge anche le schede)
+uv run python radar.py --senza-telegram   # un controllo con i messaggi a schermo
+uv run python radar.py --prova-llm        # controlla chiave OpenRouter e modello
 ```
 
-`python` è il Python 3.14 (su Windows: `py -3.14`).
+Python e librerie li gestisce **uv**: `.python-version` (3.14) e `pyproject.toml` dicono quale Python serve e uv lo
+sceglie (o lo scarica) da solo. Non usare `pip` né un altro Python: lancia tutto con `uv run`. Se `uv` non c'è,
+installalo (README, «Installazione sul PC sempre acceso»).
 
 ## Regole
 
@@ -51,8 +53,12 @@ python radar.py --prova-llm       # controlla chiave OpenRouter e modello
 - Rispetta `robots.txt` e le pause tra richieste (motore/rete.py): non toglierli. Idealista solo con l'API
   ufficiale, Facebook mai.
 - Non disattivare la verifica TLS e non aggirare i blocchi di rete: se una richiesta è negata, segnalalo.
-- Dipendenze: libreria standard più requests, beautifulsoup4 e lxml (Playwright è facoltativo). Chiedi prima di
-  aggiungerne altre. Versioni minime in `requirements.txt`.
+- Dipendenze: libreria standard più requests, beautifulsoup4 e lxml (Playwright è facoltativo, extra `browser`).
+  Chiedi prima di aggiungerne altre; si aggiungono con `uv add nome` e `pyproject.toml` e `uv.lock` vanno nello
+  stesso commit (un test controlla che `uv.lock` sia aggiornato). Non ricreare `requirements.txt`.
+- Il processo che aggiorna il PC sempre acceso (`aggiorna.py`, `servizio.py`, `archivio.py` e quello che importano)
+  non deve importare requests, bs4 o lxml a livello di modulo: su Windows `uv sync` non può sostituire una libreria
+  già caricata. Gli import pesanti stanno dentro le funzioni; `tests/test_aggiorna.py` lo controlla.
 - Python 3.14: `tomllib` della libreria standard, annotazioni di tipo native, niente
   `from __future__ import annotations`.
 - I file `.bat` hanno fine riga CRLF (lo gestisce `.gitattributes`): non crearli con `echo` o `printf` di shell.
@@ -62,7 +68,7 @@ python radar.py --prova-llm       # controlla chiave OpenRouter e modello
 
 | Modulo | Cosa fa |
 |---|---|
-| cli.py | Comandi (`python radar.py --help`) |
+| cli.py | Comandi (`uv run python radar.py --help`) |
 | controllo.py | Un controllo completo: legge le fonti, riconosce i nuovi, filtra, toglie i doppioni, mette in coda, consegna |
 | fonti.py, rete.py | Fonti da `fonti/*.csv`; scaricamento con robots.txt, pause, browser per i siti in JavaScript |
 | estrazione.py | Link agli annunci in una pagina di elenco (portali e siti delle agenzie) |
@@ -74,7 +80,7 @@ python radar.py --prova-llm       # controlla chiave OpenRouter e modello
 | llm.py | Client OpenRouter (JSON strutturato, limiti di spesa, cache) |
 | idealista.py | API ufficiale di Idealista (serve la chiave) |
 | config.py | `config.toml` + `config.local.toml` + `.env` |
-| aggiorna.py, servizio.py, verifica.py, avvio.py | Aggiornamento automatico da GitHub, modalità servizio, autoverifica, avvio automatico (Windows, cron) |
+| aggiorna.py, servizio.py, verifica.py, avvio.py | Aggiornamento automatico da GitHub (codice e, con `uv sync`, librerie), modalità servizio, autoverifica, avvio automatico (Windows, cron) con il Python di `.venv` |
 
 I test sono in `tests/` (uno per area, `conftest.py` ha i server finti).
 

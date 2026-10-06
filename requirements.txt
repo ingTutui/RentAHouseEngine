@@ -1,7 +1,0 @@
-# Python 3.14 o piu' recente. Versioni minime = le piu' recenti al 6 ottobre 2026 (pip installa comunque l'ultima).
-requests>=2.34
-beautifulsoup4>=4.15
-lxml>=6.1
-# facoltativo, per i siti che caricano gli annunci in JavaScript:
-#   python -m pip install playwright
-#   python -m playwright install chromium

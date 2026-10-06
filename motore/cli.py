@@ -11,8 +11,6 @@ from datetime import date
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
 
-import requests
-
 from . import __version__
 from .config import Percorsi, carica_config, carica_segreti, scrivi_env
 
@@ -133,6 +131,7 @@ def esporta(percorsi: Percorsi) -> None:
 
 
 def telegram_setup(percorsi: Percorsi, segreti: dict) -> None:
+    import requests
     base = (segreti.get("TELEGRAM_API_URL") or "https://api.telegram.org").rstrip("/")
     print("1) Su Telegram apri @BotFather, scrivi /newbot e segui le istruzioni.")
     token = input("2) Incolla qui il token che ti ha dato BotFather: ").strip()
@@ -218,14 +217,15 @@ def main(argv=None) -> int:
     if args.prova:
         prova_fonte(cfg, percorsi, segreti, args.prova, args.dettagli)
         return 0
-    from .controllo import esegui
     if args.servizio:
+        # il processo che aggiorna da GitHub non deve aver caricato requests, bs4 e lxml (vedi aggiorna.py)
         from .servizio import servizio
         try:
             return servizio(cfg, percorsi, segreti, finto=args.senza_telegram)
         except Exception:
             log.exception("Errore imprevisto durante il controllo")
             return 1
+    from .controllo import esegui
     if not args.loop:
         esegui(cfg, percorsi, segreti, args.solo or "", args.fonte, args.senza_telegram, args.invia_ora)
         return 0

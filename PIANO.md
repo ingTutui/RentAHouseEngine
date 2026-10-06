@@ -27,7 +27,7 @@ Gli annunci presenti solo sul sito di un'agenzia sono il vantaggio: arrivano per
 | 5 | Repository GitHub, aggiornamenti con pull request; il PC sempre acceso scarica da solo `main` | https://github.com/ingTutui/RentAHouseEngine | `[aggiornamento]` | aggiorna.py, servizio.py | test_aggiorna |
 | 6 | LLM solo tramite OpenRouter, chiave in `.env`, modello in un file di configurazione | `llm.toml` (vuoto: da compilare) | `[llm]`, `llm.toml` | llm.py, dettagli.py | test_llm |
 | 7 | Due PC: uno sempre acceso (gira il radar), uno poco usato e spesso spento dove si programma | | | | |
-| 8 | Python 3.14 e librerie alle versioni più recenti | requests 2.34, beautifulsoup4 4.15, lxml 6.1 | requirements.txt | tutto | test_cli |
+| 8 | Python 3.14 e librerie alle versioni più recenti, gestiti con **uv**: il Python giusto per il venv lo sceglie uv | requests 2.34, beautifulsoup4 4.15, lxml 6.1; versioni esatte in `uv.lock` | `pyproject.toml`, `uv.lock`, `.python-version` | tutto, aggiorna.py | test_cli, test_progetto, test_aggiorna |
 | 9 | Rispetto dei siti: robots.txt, una richiesta alla volta per sito con pausa | | `[esecuzione]` | rete.py | test_rete |
 
 Scelte fatte dall'utente rispondendo alle domande: prezzo massimo 700 € al mese, almeno 55 mq, silenzio
@@ -102,29 +102,43 @@ il controllo in un processo nuovo con il codice nuovo.
 - **Segreti e impostazioni.** `.env` (mai su git) per i segreti; `config.toml` condiviso nel repository;
   `config.local.toml` (non su git) per le differenze di un solo PC. Le variabili d'ambiente del sistema battono `.env`.
 - **Aggiornamento automatico prudente.** Solo `git merge --ff-only` di `origin/main`; se la cartella è su un altro
-  ramo o ha commit locali o modifiche in conflitto, salta. Dopo l'aggiornamento esegue `radar.py --verifica`; se
-  fallisce torna alla versione precedente (`git reset --keep`) e non riprova quella versione finché non ne arriva
-  un'altra. L'avvio automatico non ha nessuno davanti: git viene chiamato senza prompt di credenziali.
-- **Windows.** Attività pianificata (XML, `schtasks`) con `pythonw.exe`, ogni 30 minuti, solo con l'utente collegato,
-  una sola istanza alla volta, recupero dei giri persi. Linux e Mac: cron (riga con `# RadarAffitti`).
+  ramo o ha commit locali o modifiche in conflitto, salta. Se sono cambiati `pyproject.toml` o `uv.lock` allinea le
+  librerie con `uv sync --locked` (Playwright resta se c'era). Poi esegue `radar.py --verifica`; se fallisce torna
+  alla versione precedente (`git reset --keep`, e `uv sync` di nuovo con le sue librerie) e non riprova quella
+  versione finché non ne arriva un'altra. Se invece sono le librerie a non allinearsi (rete assente, uv mancante)
+  annulla senza segnare la versione come rotta e riprova al giro dopo: l'aggiornamento è tutto o niente. L'avvio
+  automatico non ha nessuno davanti: git viene chiamato senza prompt di credenziali.
+- **Windows.** Attività pianificata (XML, `schtasks`) con il `pythonw.exe` di `.venv`, ogni 30 minuti, solo con
+  l'utente collegato, una sola istanza alla volta, recupero dei giri persi. Linux e Mac: cron (riga con
+  `# RadarAffitti`) con il Python di `.venv`. Si installa con `uv run python radar.py --installa-avvio`: con un altro
+  Python il comando si rifiuta, perché l'attività userebbe un ambiente senza le librerie.
 - **Idealista e Facebook.** Idealista vieta la lettura automatica: solo API ufficiale (chiavi da chiedere su
   developers.idealista.com/access-request, poi in `.env`; una ricerca ogni 12 ore). Facebook richiede il login e vieta
   la raccolta automatica: non si legge; l'utente segue i gruppi con le notifiche.
 - **Python 3.14.** `tomllib` della libreria standard, annotazioni native (list, dict, `X | None`), `.python-version`.
-  Con un Python più vecchio `radar.py` esce con un messaggio chiaro; per questo l'aggiornamento automatico non può
-  portare una versione che non gira.
+  Con un Python più vecchio `radar.py` esce con un messaggio chiaro (che indica uv); per questo l'aggiornamento
+  automatico non può portare una versione che non gira.
+- **uv per Python, ambiente e librerie.** Richiesta dell'utente: così il Python giusto per il venv non dipende da quale
+  `python` c'è sul PC. uv legge `.python-version` e `requires-python`, scarica 3.14 se manca e crea `.venv` nella
+  cartella del progetto. Niente `requirements.txt`: un solo elenco, `pyproject.toml` (minimi) con `uv.lock` (versioni
+  esatte, nel repository); un test controlla che `uv.lock` sia aggiornato. Playwright è l'extra `browser`
+  (`uv sync --extra browser`). Il processo che aggiorna resta «leggero» (nessun requests, bs4 o lxml caricato, anche
+  tramite archivio e estrazione): su Windows uv non può sostituire i file di una libreria in uso. Cambiare versione
+  di Python resta un'operazione a mano (`git pull` e `uv sync` sul PC sempre acceso).
 - **Struttura.** Il codice è in `motore/`, i dati che cambiano in `stato/` (ignorata da git), le fonti in `fonti/`.
 
 ## 6. Stato
 
 ### Fatto e verificato
 
-- 60 test automatici (`python -m pytest`) passano su Python 3.14.6 con requests 2.34.2, beautifulsoup4 4.15.0, lxml
-  6.1.3, pytest 9.1.1; `ruff` pulito (target py314); `python radar.py --verifica` OK; lo stesso da un clone pulito.
+- 73 test automatici (`uv run pytest`) passano su Python 3.14.6 con requests 2.34.2, beautifulsoup4 4.15.0, lxml
+  6.1.3, pytest 9.1.1 (le versioni di `uv.lock`); `uv run ruff check .` pulito (target py314);
+  `uv run python radar.py --verifica` OK; lo stesso da un clone pulito, con `uv sync` che parte senza Python 3.14 sul
+  PC e lo scarica da solo.
 - I test usano un piccolo server locale che fa da sito di agenzia, da Telegram e da OpenRouter: coprono estrazione,
   filtri, area, doppioni, silenzio e coda, guasti, client LLM, aggiornamento automatico con repository git veri,
   comandi su un clone appena fatto.
-- Playwright 1.63 (facoltativo) si installa e si importa su Python 3.14.
+- Playwright 1.63 (facoltativo, extra `browser`) si installa e si importa su Python 3.14.
 
 ### Non verificato (serve il PC reale)
 
@@ -132,6 +146,9 @@ il controllo in un processo nuovo con il codice nuovo.
   provata su pagine finte e su campioni di HTML. Aspettarsi ritocchi a `fonti/fonti_agenzie.csv` (`url_affitti`,
   `pattern_link`, `js`) e, se un portale cambia pagina, a `estrazione.py`. Gli stessi siti noti come difficili: Solo
   Affitti e Tempocasa rispondono 403 ai programmi, Tecnocasa carica gli annunci in JavaScript.
+- uv su Windows: installazione con winget, `.venv\Scripts\pythonw.exe` nell'attività pianificata, `uv sync` lanciato
+  dal servizio (provato solo su Linux con un uv finto nei test e uno vero a mano). Il codice evita il caso peggiore
+  (librerie già caricate) ma va guardato al primo aggiornamento che cambia `uv.lock`: `--stato` e `stato\radar.log`.
 - Telegram reale, OpenRouter reale (il modello non è ancora scelto), Playwright con un browser vero, API di Idealista
   (nessuna chiave), aggiornamento automatico verso GitHub vero, l'attività pianificata di Windows (l'XML è validato,
   non eseguito su Windows).
@@ -150,13 +167,14 @@ il controllo in un processo nuovo con il codice nuovo.
    ```
 
    Senza `gh`: https://github.com/ingTutui/RentAHouseEngine/compare/main...aggiornamento-v2. Il merge lo fa l'utente.
-2. **PC sempre acceso** (dopo il merge, altrimenti si clona la versione 1): Python 3.14 e Git, `git clone`,
-   `python -m pip install -r requirements.txt`, copiare `.env.example` in `.env`, `python radar.py --telegram-setup`,
-   `python radar.py` (primo giro: salva tutto senza avvisare), avvio automatico con `installa/`. Dettagli nel README.
+2. **PC sempre acceso** (dopo il merge, altrimenti si clona la versione 1): uv (non serve Python: lo scarica uv) e
+   Git, `git clone`, `uv sync`, copiare `.env.example` in `.env`, `uv run python radar.py --telegram-setup`,
+   `uv run python radar.py` (primo giro: salva tutto senza avvisare), avvio automatico con `installa/`. Dettagli nel
+   README.
 3. **OpenRouter:** `OPENROUTER_API_KEY` in `.env`, `modello = "..."` in `llm.toml` (o il file dell'utente con
-   `LLM_CONFIG`), poi `python radar.py --prova-llm`.
-4. **Primo giro reale sulle fonti.** `python radar.py --stato` dopo il primo controllo: fonti con problemi e fonti
-   senza annunci. Per ognuna `python radar.py --prova "nome" --dettagli`; sistemare il CSV. Provare in particolare le
+   `LLM_CONFIG`), poi `uv run python radar.py --prova-llm`.
+4. **Primo giro reale sulle fonti.** `uv run python radar.py --stato` dopo il primo controllo: fonti con problemi e
+   fonti senza annunci. Per ognuna `uv run python radar.py --prova "nome" --dettagli`; sistemare il CSV. Provare in particolare le
    fonti "home del sito" e i circa 50 siti che dal cloud non rispondevano.
 5. **Dopo uno o due giorni:** guardare annunci scartati (`--esporta`, colonna motivo) e doppioni per tarare filtri e
    soglie.
@@ -174,3 +192,5 @@ il controllo in un processo nuovo con il codice nuovo.
 4. Richieste per la versione 2 (incrementale, filtri, orari, solo novità, repository, OpenRouter): riscrittura in
    `motore/`, con archivio a stati, doppioni tra fonti, schede degli annunci, coda notturna, aggiornamento automatico.
 5. Passaggio a Python 3.14 e alle librerie più recenti.
+6. Passaggio a uv come gestore di Python, ambiente e librerie (richiesta dell'utente: «così mi usa il python giusto per
+   il venv»): `pyproject.toml` e `uv.lock` al posto di `requirements.txt`, aggiornamento automatico con `uv sync`.

@@ -11,7 +11,6 @@ from pathlib import Path
 from .aggiorna import SENZA_FINESTRA, aggiorna
 from .archivio import Archivio
 from .config import Percorsi
-from .controllo import esegui
 
 log = logging.getLogger("radar")
 SCADENZA_BLOCCO_SEC = 3 * 3600
@@ -88,6 +87,7 @@ def servizio(cfg: dict, percorsi: Percorsi, segreti: dict[str, str], finto: bool
             argomenti = [sys.executable, str(percorsi.base / "radar.py"), "--controllo-interno",
                          "--cartella", str(percorsi.base)] + (["--senza-telegram"] if finto else [])
             return subprocess.run(argomenti, cwd=str(percorsi.base), creationflags=SENZA_FINESTRA).returncode
+        from .controllo import esegui   # solo ora: prima di aggiornare le librerie non vanno caricate
         esegui(cfg, percorsi, segreti, finto=finto)
         return 0
     finally:
