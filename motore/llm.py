@@ -66,17 +66,26 @@ def carica_modello(base: Path, cfg: dict, segreti: dict[str, str]) -> dict:
         [m for m in modelli if m != modello]
     if isinstance(riserva, str):
         riserva = [riserva]
+    temperatura = _primo(dati, "temperatura", "temperature")
     return {
         "file": str(p) if p.exists() else "",
         "modello": modello.strip(),
         "riserva": [m for m in riserva if isinstance(m, str) and m.strip() and m != modello],
-        "temperatura": float(_primo(dati, "temperatura", "temperature", default=0)),
+        "temperatura": float(temperatura) if temperatura is not None else None,
         "max_token": int(_primo(dati, "max_token", "max_tokens", "max_output_tokens", default=1500)),
         "timeout": float(_primo(dati, "timeout_sec", "timeout", default=60)),
         "provider": _primo(dati, "provider", default=None),
         "reasoning": _primo(dati, "reasoning", "ragionamento", default=None),
         "extra": _primo(dati, "extra", "parametri", default={}) or {},
     }
+
+
+def _attesa(valore: str | None) -> float:
+    """Secondi da aspettare prima di riprovare (Retry-After puo' essere anche una data: allora 5)."""
+    try:
+        return min(30.0, max(0.0, float(valore or 5)))
+    except ValueError:
+        return 5.0
 
 
 def _contenuto(messaggio: dict) -> str:
@@ -112,6 +121,7 @@ class ClienteLLM:
         self.chiave = (segreti.get("OPENROUTER_API_KEY") or "").strip()
         self.url = (segreti.get("OPENROUTER_BASE_URL") or URL_BASE).rstrip("/")
         self.chiamate = 0
+        self.rifiuti = 0          # risposte 403 in questo controllo
         self.motivo = ""
         if not self.cfg.get("usa", True):
             self.motivo = "disattivato in config.toml ([llm] usa = false)"
@@ -151,10 +161,12 @@ class ClienteLLM:
         c = self.conf
         corpo: dict[str, Any] = {
             "messages": [{"role": "system", "content": sistema}, {"role": "user", "content": utente}],
-            "temperature": c["temperatura"],
             "max_tokens": c["max_token"],
-            "usage": {"include": True},
         }
+        # solo se scritta nel file del modello: alcuni modelli (per esempio i Claude 5) non la accettano, e con
+        # require_parameters OpenRouter non troverebbe nessun fornitore
+        if c["temperatura"] is not None:
+            corpo["temperature"] = c["temperatura"]
         if c["riserva"]:
             corpo["models"] = [c["modello"]] + c["riserva"]
         else:
@@ -188,6 +200,7 @@ class ClienteLLM:
         sistema_completo = sistema + "\nRispondi solo con un oggetto JSON valido, senza testo prima o dopo."
         indice = MODI_JSON.index(self.modo)
         tentativi_rete = 0
+        provvisorio = False       # sceso di modo per un 503: puo' essere un guasto del momento, non si salva
         while indice < len(MODI_JSON):
             modo = MODI_JSON[indice]
             corpo = self._corpo(modo, sistema_completo, utente, schema, compito)
@@ -195,7 +208,7 @@ class ClienteLLM:
                 self.chiamate += 1
                 r = requests.post(self.url + "/chat/completions", json=corpo, timeout=self.conf["timeout"],
                                   headers={"Authorization": f"Bearer {self.chiave}", "HTTP-Referer": REPO,
-                                           "X-Title": "RentAHouseEngine"})
+                                           "X-OpenRouter-Title": "RentAHouseEngine"})
             except requests.RequestException as ex:
                 tentativi_rete += 1
                 if tentativi_rete >= 2:
@@ -203,25 +216,34 @@ class ClienteLLM:
                     return None
                 time.sleep(3)
                 continue
-            if r.status_code in (401, 403):
-                self.attivo, self.motivo = False, f"chiave OpenRouter rifiutata (HTTP {r.status_code})"
+            if r.status_code == 401:
+                self.attivo, self.motivo = False, "chiave OpenRouter rifiutata (HTTP 401)"
                 log.error("OpenRouter: %s. Controlla OPENROUTER_API_KEY nel file .env", self.motivo)
+                return None
+            if r.status_code == 403:
+                # moderazione, guardrail o permessi: di solito riguarda solo questo testo, non la chiave
+                self.rifiuti += 1
+                log.warning("OpenRouter: richiesta rifiutata (HTTP 403) %s", r.text[:300])
+                if self.rifiuti >= 3:
+                    self.attivo, self.motivo = False, "OpenRouter rifiuta le richieste (HTTP 403): vedi radar.log"
                 return None
             if r.status_code == 402:
                 self.attivo, self.motivo = False, "credito OpenRouter esaurito"
                 log.error("OpenRouter: credito esaurito, per oggi il radar lavora senza LLM")
                 return None
-            if r.status_code == 429 or r.status_code >= 500:
+            if r.status_code == 429 or (r.status_code >= 500 and r.status_code != 503):
                 tentativi_rete += 1
                 if tentativi_rete >= 2:
                     log.warning("OpenRouter: HTTP %s, riprovo al prossimo controllo", r.status_code)
                     return None
-                time.sleep(min(30, float(r.headers.get("Retry-After", "5") or 5)))
+                time.sleep(_attesa(r.headers.get("Retry-After")))
                 continue
             if r.status_code >= 400:
                 errore = r.text[:300]
-                if modo != "testo" and re.search(r"response_format|json_schema|structured|parameter|endpoint",
-                                                 errore, re.I):
+                # 503: nessun fornitore soddisfa i requisiti (con require_parameters: lo schema JSON)
+                if modo != "testo" and (r.status_code == 503 or re.search(
+                        r"response_format|json_schema|structured|parameter|endpoint|routing", errore, re.I)):
+                    provvisorio = provvisorio or r.status_code == 503
                     indice += 1          # il modello non supporta questo modo: prova quello successivo
                     continue
                 log.error("OpenRouter: HTTP %s %s", r.status_code, errore)
@@ -231,6 +253,8 @@ class ClienteLLM:
             try:
                 dati = r.json()
             except ValueError:
+                dati = None
+            if not isinstance(dati, dict):
                 log.warning("OpenRouter: risposta non leggibile")
                 return None
             if dati.get("error"):
@@ -239,7 +263,7 @@ class ClienteLLM:
             self._registra(dati)
             if modo != self.modo:
                 self.modo = modo
-                if self.archivio is not None:
+                if self.archivio is not None and not provvisorio:
                     self.archivio.set(self._chiave_modo, modo)
             scelta = (dati.get("choices") or [{}])[0]
             testo = _contenuto(scelta.get("message") or {})

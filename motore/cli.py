@@ -170,7 +170,7 @@ def main(argv=None) -> int:
     ap.add_argument("--coda", action="store_true", help="annunci in attesa di essere inviati")
     ap.add_argument("--esporta", action="store_true", help="esporta gli annunci visti in stato/annunci_visti.csv")
     ap.add_argument("--verifica", action="store_true", help="autoverifica del codice (usata dagli aggiornamenti)")
-    ap.add_argument("--installa-avvio", action="store_true", help="controllo automatico ogni 30 minuti su questo PC")
+    ap.add_argument("--installa-avvio", action="store_true", help="controllo automatico su questo PC (intervallo_minuti)")
     ap.add_argument("--togli-avvio", action="store_true", help="toglie il controllo automatico da questo PC")
     ap.add_argument("--controllo-interno", action="store_true", help=argparse.SUPPRESS)
     ap.add_argument("-v", "--verboso", action="store_true")

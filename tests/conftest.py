@@ -93,6 +93,7 @@ class FintoOpenRouter:
         self.risposta = risposta or (lambda corpo: {"ok": True, "saluto": "ciao a tutti"})
         self.errore: tuple[int, str] | None = None
         self.rifiuta_schema = False
+        self.rifiuto = (400, "response_format json_schema not supported")   # codice e messaggio quando rifiuta
         server.gestori["/api/v1/chat/completions"] = self
 
     def __call__(self, path: str, headers: dict, corpo: bytes):
@@ -101,7 +102,8 @@ class FintoOpenRouter:
         if self.errore:
             return self.errore[0], "application/json", self.errore[1]
         if self.rifiuta_schema and (c.get("response_format") or {}).get("type") == "json_schema":
-            return 400, "application/json", json.dumps({"error": {"message": "response_format json_schema not supported"}})
+            codice, messaggio = self.rifiuto
+            return codice, "application/json", json.dumps({"error": {"code": codice, "message": messaggio}})
         contenuto = json.dumps(self.risposta(c), ensure_ascii=False)
         return 200, "application/json", json.dumps({
             "id": "gen-1", "model": c.get("model") or (c.get("models") or ["?"])[0],

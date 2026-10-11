@@ -63,10 +63,10 @@ usa = true                          # serve anche OPENROUTER_API_KEY nel file .e
 file_modello = "llm.toml"
 max_chiamate_per_controllo = 40
 max_chiamate_al_giorno = 300
-max_spesa_giornaliera_usd = 1     # oltre questa spesa, per il resto del giorno lavora senza LLM
+max_spesa_giornaliera_usd = 1       # oltre questa spesa, per il resto del giorno lavora senza LLM
 
 [esecuzione]
-intervallo_minuti = 60              # avvio automatico e "python radar.py --loop"
+intervallo_minuti = 60              # avvio automatico: vale quando lo installi (se lo cambi, reinstallalo)
 pausa_stesso_sito_sec = 4           # pausa minima tra due richieste allo stesso sito
 timeout_sec = 25
 usa_browser_per_js = true           # per i siti che caricano gli annunci in JavaScript (serve Playwright)

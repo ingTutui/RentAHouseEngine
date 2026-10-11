@@ -3,12 +3,18 @@
 # e per decidere i doppioni incerti. Se il modello e' vuoto il radar funziona lo stesso, senza LLM.
 #
 # La chiave NON va qui ma nel file .env:   OPENROUTER_API_KEY=sk-or-...
+# Se nel file .env c'e' OPENROUTER_MODEL, vale quello e non il modello scritto qui.
 
-modello = ""                  # es. "fornitore/nome-del-modello", come scritto su openrouter.ai/models
+modello = "anthropic/claude-haiku-5.5"   # come scritto su openrouter.ai/models
 modelli_riserva = []          # facoltativo: provati in ordine se il primo non risponde
-temperatura = 0
+# temperatura = 0             # facoltativa: i Claude 5 non la accettano, si manda solo se scritta qui
 max_token = 1500              # risposta massima; con i modelli che "ragionano" serve di piu'
 timeout_sec = 60
+
+# Ragionamento del modello (parametro "reasoning" di OpenRouter, passato cosi' com'e'). Per leggere prezzo e
+# metri non serve: spento costa meno e la risposta non rischia di essere troncata da max_token.
+# Toglilo se scegli un modello che non ragiona; per accenderlo: { effort = "low" }
+ragionamento = { enabled = false }
 
 # Facoltativo: preferenze di instradamento di OpenRouter, passate cosi' come sono
 # [provider]

@@ -1,5 +1,5 @@
 #!/bin/sh
-# Radar Affitti: controllo automatico ogni 30 minuti su questo computer (Linux o Mac). Serve uv.
+# Radar Affitti: controllo automatico (intervallo_minuti in config.toml) su questo computer (Linux o Mac). Serve uv.
 cd "$(dirname "$0")/.." || exit 1
 UV=$(command -v uv || echo "$HOME/.local/bin/uv")
 if [ ! -x "$UV" ]; then

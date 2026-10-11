@@ -1,4 +1,4 @@
-"""Modalita' servizio (python radar.py --servizio), quella usata dall'avvio automatico ogni 30 minuti:
+"""Modalita' servizio (python radar.py --servizio), quella usata dall'avvio automatico:
 un solo controllo alla volta, aggiornamento dal repository, poi il controllo vero e proprio."""
 
 import logging

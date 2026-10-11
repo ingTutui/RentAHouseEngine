@@ -2,14 +2,14 @@
 
 Documento per chi apre il progetto senza contesto (per esempio una sessione nuova di Claude Code). Spiega cosa si
 vuole ottenere, cosa è stato deciso e perché, com'è fatto il codice, cosa è già verificato e cosa no, e i prossimi
-passi in ordine. Ultimo aggiornamento: 6 ottobre 2026.
+passi in ordine. Ultimo aggiornamento: 11 ottobre 2026.
 
 ## 1. Obiettivo
 
 Trovare casa in affitto nella zona di Modena e Reggio vedendo gli annunci **prima** di chi guarda solo
 Immobiliare.it: le agenzie spesso pubblicano prima, o solo, sul proprio sito. Il radar:
 
-1. legge ogni 30 minuti i siti di oltre 120 agenzie e quattro portali (Immobiliare.it, Casa.it, Subito, Wikicasa);
+1. legge ogni ora (`intervallo_minuti`) i siti di oltre 120 agenzie e quattro portali (Immobiliare.it, Casa.it, Subito, Wikicasa);
 2. riconosce gli annunci nuovi, li filtra (prezzo, metratura, zona, tipo) e toglie i doppioni tra fonti diverse;
 3. manda su Telegram solo le novità, mai di notte.
 
@@ -21,17 +21,18 @@ Gli annunci presenti solo sul sito di un'agenzia sono il vantaggio: arrivano per
 | # | Requisito | Valore | Dove si regola | Codice | Test |
 |---|---|---|---|---|---|
 | 1 | Incrementale: un annuncio già segnalato non si segnala di nuovo, nemmeno se compare su un'altra fonte | | `[doppioni]` | archivio.py, doppioni.py, controllo.py | test_archivio, test_doppioni, test_integrazione |
-| 2 | Filtri | affitto fino a 700 €/mese (spese condominiali escluse), almeno 55 mq, niente stanze, negozi, uffici, box | `[filtri]` | analisi.py (`scarta`) | test_filtri |
+| 2 | Filtri | affitto fino a 750 €/mese (spese condominiali escluse), almeno 60 mq, niente stanze, negozi, uffici, box | `[filtri]` | analisi.py (`scarta`) | test_filtri |
 | 3 | Orari | silenzio dalle 22:00 alle 08:00: il radar controlla comunque, i messaggi restano in coda e partono dopo le 8 | `[notifiche]` | notifiche.py (`in_silenzio`, `consegna`) | test_notifiche |
 | 4 | Solo novità: se non trova nulla non scrive | eccezione: avvisi sulle fonti rotte (vedi sezione 5) | `[notifiche]` | notifiche.py | test_notifiche |
 | 5 | Repository GitHub, aggiornamenti con pull request; il PC sempre acceso scarica da solo `main` | https://github.com/ingTutui/RentAHouseEngine | `[aggiornamento]` | aggiorna.py, servizio.py | test_aggiorna |
-| 6 | LLM solo tramite OpenRouter, chiave in `.env`, modello in un file di configurazione | `llm.toml` (vuoto: da compilare) | `[llm]`, `llm.toml` | llm.py, dettagli.py | test_llm |
+| 6 | LLM solo tramite OpenRouter, chiave in `.env`, modello in un file di configurazione | `anthropic/claude-haiku-5.5` in `llm.toml` e `.env.example` | `[llm]`, `llm.toml` | llm.py, dettagli.py | test_llm |
 | 7 | Due PC: uno sempre acceso (gira il radar), uno poco usato e spesso spento dove si programma | | | | |
 | 8 | Python 3.14 e librerie alle versioni più recenti, gestiti con **uv**: il Python giusto per il venv lo sceglie uv | requests 2.34, beautifulsoup4 4.15, lxml 6.1; versioni esatte in `uv.lock` | `pyproject.toml`, `uv.lock`, `.python-version` | tutto, aggiorna.py | test_cli, test_progetto, test_aggiorna |
 | 9 | Rispetto dei siti: robots.txt, una richiesta alla volta per sito con pausa | | `[esecuzione]` | rete.py | test_rete |
 
 Scelte fatte dall'utente rispondendo alle domande: prezzo massimo 700 € al mese, almeno 55 mq, silenzio
-22:00-08:00, GitHub con pull request (così sul PC sempre acceso arriva solo ciò che l'utente unisce a `main`).
+22:00-08:00 (l'11 ottobre 2026 l'utente ha portato i filtri a 750 € e 60 mq, il controllo a ogni ora e il limite
+LLM a 1 $ al giorno), GitHub con pull request (così sul PC sempre acceso arriva solo ciò che l'utente unisce a `main`).
 Telegram per le notifiche e radar sul proprio computer (non nel cloud) erano già decisi prima.
 
 ## 3. Area di ricerca
@@ -44,7 +45,7 @@ confini ISTAT (mappe e ragionamento in `contesto/`, se presente). In `config.tom
   San Martino in Rio, Sassuolo, Casalgrande;
 - `frazioni_area`: comuni di cui sono dentro solo alcune frazioni (Reggio Emilia: Bagno, Marmirolo, Castellazzo,
   Corticella; Scandiano: Arceto, Cacciola; Carpi: Gargallo; Correggio: Prato; Bomporto: Villavara);
-- `zone_fuori_area`: frazioni fuori area di comuni inclusi (Limidi, Sozzigalli, Manzolino, Riolo, Rastellino,
+- `zone_fuori_area`: frazioni fuori area di comuni inclusi (Sozzigalli, Manzolino, Riolo, Rastellino,
   Piumazzo, Cavazzona, Redù, Via Larga) e paesi vicini esclusi (Carpi, Correggio, Bomporto, Sorbara, Ravarino,
   Vignola, Savignano, Scandiano, Castellarano, Serramazzoni);
 - `fuori_zona = "scarta"`: un annuncio si scarta per la zona **solo quando il luogo è certo** (comune dato dal portale
@@ -79,7 +80,7 @@ confini ISTAT e GeoNames: lo script che l'ha prodotto non è nel repository.
 Stati di un annuncio nell'archivio: `base`, `scartato` (con il motivo), `doppione` (con il gruppo), `da_inviare`,
 `inviato`. `python radar.py --esporta` li salva tutti in `stato/annunci_visti.csv`.
 
-L'avvio automatico (`--servizio`, ogni 30 minuti) prende un blocco di esclusione (un solo controllo alla volta),
+L'avvio automatico (`--servizio`, ogni ora) prende un blocco di esclusione (un solo controllo alla volta),
 prova ad aggiornare il codice da GitHub (aggiorna.py) e poi fa il controllo; se il codice è stato aggiornato rilancia
 il controllo in un processo nuovo con il codice nuovo.
 
@@ -93,12 +94,17 @@ il controllo in un processo nuovo con il codice nuovo.
   massimo una volta a settimana). Un messaggio a parte solo se passano 3 giorni senza altri messaggi: senza questa
   eccezione un radar rotto sembrerebbe un radar senza novità. Si spegne con `avvisi_guasti = false`.
 - **L'LLM non decide mai da solo i numeri.** Prezzo e metri dell'LLM sono accettati solo se letteralmente nella
-  pagina. Senza chiave, senza modello o oltre i limiti (40 chiamate per controllo, 300 al giorno, 0,5 $ al giorno) il
+  pagina. Senza chiave, senza modello o oltre i limiti (40 chiamate per controllo, 300 al giorno, 1 $ al giorno) il
   radar lavora con regole e dati strutturati.
 - **OpenRouter.** Chiavi e modello separati: la chiave in `.env`, il modello in `llm.toml` (o file TOML/JSON indicato
   da `LLM_CONFIG`, o `OPENROUTER_MODEL`). Il client prova JSON schema rigoroso, poi `json_object`, poi solo
-  istruzioni, e si ricorda cosa funziona per quel modello; risposte in cache; errori 401, 402 e 403 spengono l'LLM
-  per il giro, 429 e 5xx riprovano una volta.
+  istruzioni, e si ricorda cosa funziona per quel modello (non dopo un 503, che può essere un guasto del momento);
+  risposte in cache. `temperature` si manda solo se scritta nel file del modello: i Claude 5 non la accettano e con
+  `require_parameters` nessun fornitore risponderebbe. Errori: 401 e 402 spengono l'LLM per il giro; 403
+  (moderazione, guardrail) salta solo quella richiesta e lo spegne dopo tre di fila; 503 (nessun fornitore
+  soddisfa i requisiti) passa al modo successivo; 429 e gli altri 5xx riprovano una volta. Modello:
+  `anthropic/claude-haiku-5.5` col ragionamento spento (`ragionamento = { enabled = false }` in `llm.toml`):
+  basta per leggere prezzo e metri e costa 0,10 $ per milione di token in ingresso, 0,50 $ in uscita.
 - **Segreti e impostazioni.** `.env` (mai su git) per i segreti; `config.toml` condiviso nel repository;
   `config.local.toml` (non su git) per le differenze di un solo PC. Le variabili d'ambiente del sistema battono `.env`.
 - **Aggiornamento automatico prudente.** Solo `git merge --ff-only` di `origin/main`; se la cartella è su un altro
@@ -108,7 +114,7 @@ il controllo in un processo nuovo con il codice nuovo.
   versione finché non ne arriva un'altra. Se invece sono le librerie a non allinearsi (rete assente, uv mancante)
   annulla senza segnare la versione come rotta e riprova al giro dopo: l'aggiornamento è tutto o niente. L'avvio
   automatico non ha nessuno davanti: git viene chiamato senza prompt di credenziali.
-- **Windows.** Attività pianificata (XML, `schtasks`) con il `pythonw.exe` di `.venv`, ogni 30 minuti, solo con
+- **Windows.** Attività pianificata (XML, `schtasks`) con il `pythonw.exe` di `.venv`, ogni `intervallo_minuti` (scritto nell'attività quando si installa), solo con
   l'utente collegato, una sola istanza alla volta, recupero dei giri persi. Linux e Mac: cron (riga con
   `# RadarAffitti`) con il Python di `.venv`. Si installa con `uv run python radar.py --installa-avvio`: con un altro
   Python il comando si rifiuta, perché l'attività userebbe un ambiente senza le librerie.
@@ -131,7 +137,7 @@ il controllo in un processo nuovo con il codice nuovo.
 
 ### Fatto e verificato
 
-- 73 test automatici (`uv run pytest`) passano su Python 3.14.6 con requests 2.34.2, beautifulsoup4 4.15.0, lxml
+- 78 test automatici (`uv run pytest`) passano su Python 3.14.6 con requests 2.34.2, beautifulsoup4 4.15.0, lxml
   6.1.3, pytest 9.1.1 (le versioni di `uv.lock`); `uv run ruff check .` pulito (target py314);
   `uv run python radar.py --verifica` OK; lo stesso da un clone pulito, con `uv sync` che parte senza Python 3.14 sul
   PC e lo scarica da solo.
@@ -149,30 +155,19 @@ il controllo in un processo nuovo con il codice nuovo.
 - uv su Windows: installazione con winget, `.venv\Scripts\pythonw.exe` nell'attività pianificata, `uv sync` lanciato
   dal servizio (provato solo su Linux con un uv finto nei test e uno vero a mano). Il codice evita il caso peggiore
   (librerie già caricate) ma va guardato al primo aggiornamento che cambia `uv.lock`: `--stato` e `stato\radar.log`.
-- Telegram reale, OpenRouter reale (il modello non è ancora scelto), Playwright con un browser vero, API di Idealista
+- Telegram reale, OpenRouter reale (modello scelto, manca la chiave), Playwright con un browser vero, API di Idealista
   (nessuna chiave), aggiornamento automatico verso GitHub vero, l'attività pianificata di Windows (l'XML è validato,
   non eseguito su Windows).
-- Il repository è ancora vuoto: nulla è stato spinto.
 
 ## 7. Prossimi passi, in ordine
 
-1. **Push e pull request** (dal PC con le credenziali GitHub dell'utente). Il repository locale ha già il remoto
-   `origin` e due rami: `main` (versione 1, commit dda7fc2) e `aggiornamento-v2` (versione 2). Prima `main`, poi
-   l'altro:
-
-   ```
-   git push -u origin main
-   git push -u origin aggiornamento-v2
-   gh pr create --base main --head aggiornamento-v2 --title "Radar Affitti 2.0" --body "Versione 2: vedi README.md e PIANO.md."
-   ```
-
-   Senza `gh`: https://github.com/ingTutui/RentAHouseEngine/compare/main...aggiornamento-v2. Il merge lo fa l'utente.
+1. **Push e pull request:** fatto, la versione 2 è su `main` (pull request #1).
 2. **PC sempre acceso** (dopo il merge, altrimenti si clona la versione 1): uv (non serve Python: lo scarica uv) e
    Git, `git clone`, `uv sync`, copiare `.env.example` in `.env`, `uv run python radar.py --telegram-setup`,
    `uv run python radar.py` (primo giro: salva tutto senza avvisare), avvio automatico con `installa/`. Dettagli nel
    README.
-3. **OpenRouter:** `OPENROUTER_API_KEY` in `.env`, `modello = "..."` in `llm.toml` (o il file dell'utente con
-   `LLM_CONFIG`), poi `uv run python radar.py --prova-llm`.
+3. **OpenRouter:** `OPENROUTER_API_KEY` in `.env` (il modello è già scelto: Haiku 5.5 in `llm.toml` e
+   `.env.example`), poi `uv run python radar.py --prova-llm`.
 4. **Primo giro reale sulle fonti.** `uv run python radar.py --stato` dopo il primo controllo: fonti con problemi e
    fonti senza annunci. Per ognuna `uv run python radar.py --prova "nome" --dettagli`; sistemare il CSV. Provare in particolare le
    fonti "home del sito" e i circa 50 siti che dal cloud non rispondevano.
@@ -194,3 +189,5 @@ il controllo in un processo nuovo con il codice nuovo.
 5. Passaggio a Python 3.14 e alle librerie più recenti.
 6. Passaggio a uv come gestore di Python, ambiente e librerie (richiesta dell'utente: «così mi usa il python giusto per
    il venv»): `pyproject.toml` e `uv.lock` al posto di `requirements.txt`, aggiornamento automatico con `uv sync`.
+7. Versione 2 su `main` (pull request #1). L'utente alza i filtri (750 €, 60 mq, Limidi dentro l'area), passa al
+   controllo ogni ora e a 1 $ al giorno di LLM; client OpenRouter rivisto sulla documentazione, modello Haiku 5.5.

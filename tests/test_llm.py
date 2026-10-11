@@ -5,7 +5,7 @@ from motore.analisi import Annuncio
 from motore.archivio import Archivio
 from motore.config import carica_config
 from motore.dettagli import applica_llm, leggi_pagina, numero_nel_testo
-from motore.llm import ClienteLLM, carica_modello, leggi_json, prova
+from motore.llm import ClienteLLM, _attesa, carica_modello, leggi_json, prova
 
 from conftest import RADICE, FintoOpenRouter
 
@@ -31,6 +31,20 @@ def test_file_del_modello(tmp_path):
     assert carica_modello(tmp_path, CFG, {"OPENROUTER_MODEL": "z/z"})["modello"] == "z/z"
 
 
+def test_file_del_modello_del_repository():
+    c = carica_modello(RADICE, CFG, {})
+    assert c["modello"] and c["temperatura"] is None and c["reasoning"] == {"enabled": False}
+
+
+def test_temperatura_solo_se_scritta(tmp_path):
+    (tmp_path / "llm.toml").write_text('modello = "a/b"\n', encoding="utf-8")
+    c = ClienteLLM(CFG, {"OPENROUTER_API_KEY": "k"}, None, tmp_path)
+    assert "temperature" not in c._corpo("schema", "s", "u", {}, "t")     # i Claude 5 non la accettano
+    (tmp_path / "llm.toml").write_text('modello = "a/b"\ntemperatura = 0\n', encoding="utf-8")
+    c = ClienteLLM(CFG, {"OPENROUTER_API_KEY": "k"}, None, tmp_path)
+    assert c._corpo("schema", "s", "u", {}, "t")["temperature"] == 0
+
+
 def test_senza_chiave_o_modello_resta_spento(tmp_path):
     arc = Archivio(tmp_path / "r.db")
     assert "OPENROUTER_API_KEY" in ClienteLLM(CFG, {}, arc, tmp_path).stato()
@@ -47,6 +61,8 @@ def test_risposta_strutturata_e_cache(tmp_path, server):
     assert corpo["model"] == "fornitore/modello-prova"
     assert corpo["response_format"]["type"] == "json_schema" and corpo["provider"]["require_parameters"] is True
     assert corpo["headers"]["Authorization"] == "Bearer sk-or-prova"
+    assert corpo["headers"]["X-OpenRouter-Title"] == "RentAHouseEngine"
+    assert "usage" not in corpo and "temperature" not in corpo         # usage e' deprecato: arriva sempre
     schema = {"type": "object", "properties": {"ok": {"type": "boolean"}}, "required": ["ok"]}
     assert c.chiedi_json("t", "s", "stessa domanda", schema) == {"ok": True, "saluto": "ciao a tutti"}
     assert c.chiedi_json("t", "s", "stessa domanda", schema) == {"ok": True, "saluto": "ciao a tutti"}
@@ -62,6 +78,34 @@ def test_modello_senza_json_schema(tmp_path, server):
     assert c.chiedi_json("t", "s", "u", {"type": "object"}) == {"ok": True, "saluto": "ciao a tutti"}
     assert [x.get("response_format", {}).get("type") for x in finto.corpi] == ["json_schema", "json_object"]
     assert ClienteLLM(CFG, segreti(server), arc, tmp_path).modo == "oggetto"   # se lo ricorda
+
+
+def test_nessun_fornitore_per_lo_schema(tmp_path, server):
+    # 503 = nessun fornitore soddisfa i requisiti: si passa a json_object subito, senza riprovare,
+    # ma solo per questo controllo (puo' essere un guasto del momento)
+    finto = FintoOpenRouter(server)
+    finto.rifiuta_schema = True
+    finto.rifiuto = (503, "There is no available model provider that meets your routing requirements")
+    arc = Archivio(tmp_path / "r.db")
+    c = ClienteLLM(CFG, segreti(server), arc, tmp_path)
+    assert c.chiedi_json("t", "s", "u", {"type": "object"}) == {"ok": True, "saluto": "ciao a tutti"}
+    assert [x.get("response_format", {}).get("type") for x in finto.corpi] == ["json_schema", "json_object"]
+    assert c.modo == "oggetto"
+    assert ClienteLLM(CFG, segreti(server), arc, tmp_path).modo == "schema"
+
+
+def test_rifiuto_403_vale_per_la_singola_richiesta(tmp_path, server):
+    finto = FintoOpenRouter(server)
+    finto.errore = (403, json.dumps({"error": {"code": 403, "message": "Input flagged by moderation"}}))
+    c = ClienteLLM(CFG, segreti(server), Archivio(tmp_path / "r.db"), tmp_path)
+    assert c.chiedi_json("t", "s", "u1", {}) is None and c.attivo        # un testo bloccato non spegne l'LLM
+    assert c.chiedi_json("t", "s", "u2", {}) is None and c.attivo
+    assert c.chiedi_json("t", "s", "u3", {}) is None and not c.attivo    # tre di fila: si', per questo controllo
+
+
+def test_attesa_retry_after():
+    assert (_attesa("2"), _attesa(None), _attesa("999")) == (2.0, 5.0, 30.0)
+    assert _attesa("Wed, 21 Oct 2026 07:28:00 GMT") == 5.0             # anche una data e' valida
 
 
 def test_chiave_sbagliata_e_limiti(tmp_path, server):

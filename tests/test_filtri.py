@@ -19,15 +19,17 @@ def nuovo(**k) -> Annuncio:
 
 
 def test_valori_scelti_da_ste():
+    # l'unico test legato ai valori di config.toml: se li cambi, aggiorna anche questo (e PIANO.md)
     f = CFG["filtri"]
-    assert (f["prezzo_max"], f["mq_min"], f["escludi_stanze"]) == (700, 55, True)
+    assert (f["prezzo_max"], f["mq_min"], f["escludi_stanze"]) == (750, 60, True)
     assert (CFG["notifiche"]["silenzio_dalle"], CFG["notifiche"]["silenzio_alle"]) == ("22:00", "08:00")
 
 
 def test_prezzo_e_metratura():
-    assert scarta(nuovo(prezzo=700, mq=55), CFG) == ""
-    assert scarta(nuovo(prezzo=750, mq=60), CFG) == "prezzo alto"
-    assert scarta(nuovo(prezzo=650, mq=50), CFG) == "metratura piccola"
+    prezzo, mq = CFG["filtri"]["prezzo_max"], CFG["filtri"]["mq_min"]
+    assert scarta(nuovo(prezzo=prezzo, mq=mq), CFG) == ""
+    assert scarta(nuovo(prezzo=prezzo + 50, mq=mq + 5), CFG) == "prezzo alto"
+    assert scarta(nuovo(prezzo=prezzo - 50, mq=mq - 5), CFG) == "metratura piccola"
 
 
 def test_dati_mancanti():
@@ -59,7 +61,8 @@ def test_comuni_e_frazioni():
 
 
 def test_area():
-    f = CFG["filtri"]
+    f = copy.deepcopy(CFG["filtri"])
+    f["zone_fuori_area"].append("Limidi")        # frazione di Soliera esclusa (fissa qui, non da config.toml)
     assert valuta_area("Formigine", None, "", f)[0] == "dentro"
     assert valuta_area("Vignola", None, "", f) == ("fuori", "Vignola")
     assert valuta_area("Carpi", "Gargallo", "", f)[0] == "dentro"

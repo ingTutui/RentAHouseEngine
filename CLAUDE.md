@@ -1,6 +1,6 @@
 # RentAHouseEngine (Radar Affitti)
 
-Aggregatore personale di annunci di affitto per la zona di Modena e Reggio. Ogni 30 minuti legge i siti di oltre
+Aggregatore personale di annunci di affitto per la zona di Modena e Reggio. Ogni ora legge i siti di oltre
 120 agenzie e i portali (Immobiliare.it, Casa.it, Subito, Wikicasa) e manda su Telegram solo gli annunci nuovi che
 rispettano i filtri. Scopo: vedere gli annunci che le agenzie pubblicano sul proprio sito prima (o senza) che
 arrivino su Immobiliare.it.
@@ -25,7 +25,7 @@ l'area di ricerca, le mappe, gli elenchi delle agenzie).
 
 ```
 uv sync                                   # una volta: .venv con Python 3.14 e le librerie (anche pytest e ruff)
-uv run pytest                             # 73 test, circa 40 secondi, nessuna rete (siti, Telegram e OpenRouter finti)
+uv run pytest                             # 78 test, circa un minuto, nessuna rete (siti, Telegram e OpenRouter finti)
 uv run ruff check .
 uv run python radar.py --verifica         # autoverifica: la usa anche l'aggiornamento automatico
 uv run python radar.py --stato            # archivio, coda, LLM, fonti con problemi
@@ -86,5 +86,5 @@ I test sono in `tests/` (uno per area, `conftest.py` ha i server finti).
 
 ## Stato
 
-Versione 2 completa e collaudata in locale. Mancano: push e pull request, installazione sul PC sempre acceso,
-modello in `llm.toml`, Telegram, primo giro reale sulle fonti. Elenco ordinato in PIANO.md, sezione 7.
+Versione 2 su `main` (pull request #1), modello OpenRouter scelto (`anthropic/claude-haiku-5.5`). Mancano:
+installazione sul PC sempre acceso, chiave OpenRouter, Telegram, primo giro reale sulle fonti. Elenco ordinato in PIANO.md, sezione 7.

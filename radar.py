@@ -5,7 +5,7 @@ Radar Affitti - aggregatore di annunci in affitto per l'area di Modena (RentAHou
 Comandi principali (elenco completo: python radar.py --help). Con uv: uv run python radar.py ...
     python radar.py --telegram-setup        collega il bot Telegram (una volta, sul PC sempre acceso)
     python radar.py                         un controllo completo di tutte le fonti
-    python radar.py --servizio              quello che lancia l'avvio automatico ogni 30 minuti
+    python radar.py --servizio              quello che lancia l'avvio automatico
     python radar.py --prova "Mirantecase"   mostra cosa estrae da una fonte, senza salvare
     python radar.py --stato                 stato di fonti, coda e LLM
 """
