@@ -4,28 +4,13 @@ from datetime import datetime, timedelta
 
 from motore import doppioni
 from motore.archivio import Archivio
-from motore.config import Percorsi, carica_config, carica_segreti
-from motore.controllo import esegui
 from motore.fonti import Fonte, pattern_sbagliati
 from motore.verifica import verifica
 
-from conftest import FintoOpenRouter, FintoTelegram, aggiungi_agenzia, scrivi_locale
+from conftest import FintoOpenRouter, FintoTelegram, aggiungi_agenzia, giro, lista, scrivi_locale
 
 LOCALE = ("[esecuzione]\npausa_stesso_sito_sec = 0\ntimeout_sec = 5\nusa_browser_per_js = false\n"
           "[notifiche]\nsilenzio_dalle = \"{dalle}\"\nsilenzio_alle = \"{alle}\"\n")
-
-
-def lista(prefisso, annunci):
-    schede = "".join(f'<article class="card"><h3><a href="/{prefisso}/immobile/{s}/">{t}</a></h3><p>{info}</p></article>'
-                     for s, t, info in annunci)
-    return (f"<html><body><nav><a href='/{prefisso}/'>Home</a> <a href='/{prefisso}/contatti/'>Contatti</a></nav>"
-            f"<div class='lista'>{schede}</div></body></html>")
-
-
-def giro(cartella, **k):
-    cfg = carica_config(cartella)
-    p = Percorsi(cartella)
-    return esegui(cfg, p, carica_segreti(p, cfg), **k)
 
 
 def test_giro_completo(cartella, server):
@@ -36,13 +21,12 @@ def test_giro_completo(cartella, server):
     server.pagina("/b/affitti/", lista("b", [("quadrilocale-sacca-2001", "Quadrilocale Sacca",
                                               "Modena · 110 mq · € 1.300/mese")]))
     aggiungi_agenzia(cartella, "Agenzia Alfa", "Formigine", server.url("/a/affitti/"))
-    aggiungi_agenzia(cartella, "Agenzia Beta", "Modena", server.url("/b/affitti/", host="localhost"))
+    aggiungi_agenzia(cartella, "Agenzia Beta", "Modena", server.url("/b/affitti/"))
 
     # 1) prima lettura: salva tutto senza avvisare
     assert giro(cartella) == 0 and tg.messaggi == []
 
     # 2) tre annunci nuovi: uno va bene, uno costa troppo, uno ha i dati solo nella sua pagina
-    #    (valori lontani dalle soglie di config.toml, cosi' ritoccare i filtri non rompe il test)
     a += [("bilocale-arredato-casinalbo-1003", "Bilocale arredato a Casinalbo", "70 mq · € 600/mese · 2 locali"),
           ("bilocale-caro-1004", "Bilocale signorile a Formigine", "75 mq · € 1.400/mese"),
           ("trilocale-giardino-1005", "Trilocale con giardino", "Scopri di più")]
@@ -65,7 +49,7 @@ def test_giro_completo(cartella, server):
         ("bilocale-casinalbo-2002", "Appartamento bilocale Casinalbo", "Formigine · 70 mq · € 600/mese · 2 locali")]))
     assert giro(cartella) == 0 and len(tg.messaggi) == 2
     arc = Archivio(cartella / "stato" / "radar.db")
-    assert arc.stato_di(server.url("/b/immobile/bilocale-casinalbo-2002", host="localhost")) == "doppione"
+    assert arc.stato_di(server.url("/b/immobile/bilocale-casinalbo-2002")) == "doppione"
     arc.chiudi()
 
     # 4) nessuna novita': nessun messaggio
@@ -189,7 +173,7 @@ def test_errore_in_una_fonte_non_ferma_il_controllo(cartella, server, monkeypatc
     aggiungi_agenzia(cartella, "Agenzia Rotta", "Modena", server.url("/g/affitti/"), pattern="immobile/(")
     a = [("bilocale-centro-1001", "Bilocale in centro a Formigine", "Formigine · 70 mq · € 600/mese")]
     server.pagina("/a/affitti/", lista("a", a))
-    aggiungi_agenzia(cartella, "Agenzia Alfa", "Formigine", server.url("/a/affitti/", host="localhost"))
+    aggiungi_agenzia(cartella, "Agenzia Alfa", "Formigine", server.url("/a/affitti/"))
     assert giro(cartella) == 0
     a += [("trilocale-nuovo-1002", "Trilocale a Formigine", "Formigine · 85 mq · € 650/mese"),
           ("bilocale-guasto-1003", "Bilocale a Formigine", "Formigine · 90 mq · € 520/mese")]
@@ -204,7 +188,7 @@ def test_errore_in_una_fonte_non_ferma_il_controllo(cartella, server, monkeypatc
     monkeypatch.setattr(doppioni, "cerca", cerca)
     assert giro(cartella) == 1 and len(tg.messaggi) == 1 and "Trilocale a Formigine" in tg.messaggi[0]
     arc = Archivio(cartella / "stato" / "radar.db")
-    assert not arc.visto(server.url("/a/immobile/bilocale-guasto-1003", host="localhost"))   # si riprova dopo
+    assert not arc.visto(server.url("/a/immobile/bilocale-guasto-1003"))   # si riprova dopo
     note = {p["nome"]: p["nota"] for p in arc.problemi(0)}
     arc.chiudi()
     assert note["Agenzia Rotta"].startswith("errore del radar") and "Agenzia Alfa" in note

@@ -1,11 +1,10 @@
 from motore.analisi import analizza, importi, leggi_numeri, RE_MQ, scarta
-from motore.config import carica_config
 from motore.estrazione import canonico, estrai, pagina_immobiliare, sembra_annuncio
 from motore.fonti import Fonte
 
-from conftest import RADICE
+from conftest import config_di_prova
 
-CFG = carica_config(RADICE)
+CFG = config_di_prova()
 PORTALE = Fonte("portale", "Immobiliare.it", "Modena", "https://www.immobiliare.it/x")
 AGENZIA = Fonte("agenzia", "X", "Modena", "https://ag.it/affitti/")
 
