@@ -1,6 +1,6 @@
 # RentAHouseEngine · Radar Affitti
 
-Ogni 30 minuti controlla i siti di oltre 120 agenzie immobiliari della zona di Modena e i portali
+Ogni ora controlla i siti di oltre 120 agenzie immobiliari della zona di Modena e i portali
 (Immobiliare.it, Casa.it, Subito.it, Wikicasa) e ti scrive su Telegram **solo** quando c'è un affitto nuovo
 che rispetta i tuoi filtri. L'obiettivo è vedere gli annunci che le agenzie pubblicano sul proprio sito prima
 (o senza) che arrivino su Immobiliare.it.
@@ -10,7 +10,7 @@ che rispetta i tuoi filtri. L'obiettivo è vedere gli annunci che le agenzie pub
 | Regola | Come funziona |
 |---|---|
 | **Incrementale** | Ogni annuncio ti arriva una volta sola. Se lo stesso immobile compare su più fonti (sito dell'agenzia, poi Immobiliare.it, poi Casa.it) viene riconosciuto e non lo rivedi. Se cambia solo il prezzo di poco, è lo stesso annuncio. |
-| **Filtri** | Affitto fino a **700 €/mese** (spese condominiali escluse), almeno **55 mq**, nei comuni dell'area. Niente stanze, negozi, uffici, box. Si cambiano in `config.toml`. |
+| **Filtri** | Affitto fino a **750 €/mese** (spese condominiali escluse), almeno **60 mq**, nei comuni dell'area. Niente stanze, negozi, uffici, box. Si cambiano in `config.toml`. |
 | **Orari** | **Silenzio dalle 22:00 alle 08:00**. Di notte il radar continua a controllare, ma i messaggi restano in coda e ti arrivano tutti insieme dopo le 8:00. |
 | **Solo novità** | Se non trova niente non scrive. Gli avvisi sulle fonti rotte viaggiano in fondo a un messaggio con novità, al massimo una volta a settimana (a parte solo dopo 3 giorni senza altri messaggi). |
 | **Aggiornamenti da GitHub** | Le modifiche al codice arrivano come pull request. Il PC sempre acceso scarica da solo solo ciò che hai unito a `main`. |
@@ -21,7 +21,7 @@ che rispetta i tuoi filtri. L'obiettivo è vedere gli annunci che le agenzie pub
 ```
 PC dove programmi ── push del ramo ──▶ GitHub ── pull request ──▶ tu premi "Merge" ──▶ main
                                                                                          │
-PC sempre acceso: ogni 30 minuti  python radar.py --servizio  ◀──── scarica main ───────┘
+PC sempre acceso: ogni 60 minuti  python radar.py --servizio  ◀──── scarica main ───────┘
     1. git fetch + merge (solo avanzamento: non sovrascrive niente)
     2. se sono cambiate le librerie (pyproject.toml, uv.lock): uv sync le allinea
     3. python radar.py --verifica sul codice nuovo
@@ -58,14 +58,16 @@ uv sync
 1. **Segreti.** Copia `.env.example` in `.env`. Il file resta solo su questo PC (è escluso da git).
 2. **Telegram.** `uv run python radar.py --telegram-setup`: ti guida a creare il bot con @BotFather, trova da solo il
    tuo chat id e scrive token e chat id in `.env`. Ti arriva un messaggio di prova.
-3. **OpenRouter** (facoltativo). Scrivi la chiave in `.env` (`OPENROUTER_API_KEY=...`) e il modello in `llm.toml`
-   (`modello = "..."`). Se preferisci un file tuo, indicalo in `.env` con `LLM_CONFIG=percorso/del/file`
-   (TOML o JSON). Prova con `uv run python radar.py --prova-llm`.
+3. **OpenRouter** (facoltativo). Scrivi la chiave in `.env` (`OPENROUTER_API_KEY=...`). Il modello è già scelto:
+   `anthropic/claude-haiku-5.5`, in `llm.toml` e in `.env.example` (`OPENROUTER_MODEL`, che se c'è vale più di
+   `llm.toml`). Se preferisci un file tuo, indicalo in `.env` con `LLM_CONFIG=percorso/del/file` (TOML o JSON).
+   Prova con `uv run python radar.py --prova-llm`.
 4. **Primo controllo.** `uv run python radar.py`. Per ogni fonte, la prima lettura salva quello che c'è già online come
    "visto" **senza avvisarti**: altrimenti ti arriverebbero centinaia di annunci vecchi. Se vuoi invece vedere
    subito anche quelli già online che rispettano i filtri (arrivano in un unico elenco), crea `config.local.toml`
    con `[esecuzione]` e `notifica_prima_esecuzione = true` prima di questo passo.
-5. **Avvio automatico ogni 30 minuti.**
+5. **Avvio automatico ogni ora** (`intervallo_minuti` in `config.toml`: vale quando lo installi, se lo cambi
+   ripeti questo passo).
    - Windows: doppio clic su `installa\windows_avvio_automatico.bat`. L'attività usa il Python di `.venv` e parte
      quando sei collegato (utente connesso): lascia il PC con l'utente sempre collegato e disattiva la sospensione.
      Per toglierla: `installa\windows_togli_avvio.bat`.
@@ -102,7 +104,7 @@ uv run python radar.py --verifica   # la stessa autoverifica che fa l'aggiorname
   anche le schede dei primi annunci).
 
 **Per cambiare qualcosa:** crea un ramo (`git switch -c nome-modifica`), modifica, esegui `uv run pytest`,
-poi `git push -u origin nome-modifica` e apri la pull request su GitHub. Quando premi **Merge**, entro 30 minuti
+poi `git push -u origin nome-modifica` e apri la pull request su GitHub. Quando premi **Merge**, entro un'ora
 la modifica è sul PC sempre acceso. Per aggiungere una libreria: `uv add nome` (aggiorna `pyproject.toml` e `uv.lock`,
 che vanno nello stesso commit).
 
@@ -139,13 +141,13 @@ I valori più usati, in `config.toml`:
 
 | Sezione | Chiave | Valore attuale |
 |---|---|---|
-| `[filtri]` | `prezzo_max` | 700 |
-| `[filtri]` | `mq_min` | 55 |
+| `[filtri]` | `prezzo_max` | 750 |
+| `[filtri]` | `mq_min` | 60 |
 | `[filtri]` | `dati_mancanti` | `"invia"`: se prezzo o metratura mancano anche nella pagina, l'annuncio arriva comunque, con "prezzo non indicato". `"scarta"` per escluderli. |
 | `[filtri]` | `fuori_zona` | `"scarta"` solo se il comune è certo; se il luogo è solo citato nel testo arriva con un avviso. |
 | `[notifiche]` | `silenzio_dalle`, `silenzio_alle` | `"22:00"`, `"08:00"` (vuoti = mai silenzio) |
 | `[notifiche]` | `max_messaggi_singoli` | 15: oltre, un unico elenco |
-| `[llm]` | `max_spesa_giornaliera_usd` | 0.5: oltre questa spesa lavora senza LLM per il resto del giorno |
+| `[llm]` | `max_spesa_giornaliera_usd` | 1: oltre questa spesa lavora senza LLM per il resto del giorno |
 | `[aggiornamento]` | `automatico` | `true` |
 
 Un esempio di `config.local.toml` che sposta il silenzio solo su un PC:

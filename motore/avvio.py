@@ -1,4 +1,4 @@
-"""Avvio automatico ogni 30 minuti: Utilita' di pianificazione su Windows, crontab su Linux e Mac.
+"""Avvio automatico ogni intervallo_minuti (config.toml): Utilita' di pianificazione su Windows, crontab su Linux e Mac.
 
 uv run python radar.py --installa-avvio   crea (o sostituisce) l'attivita' "RadarAffitti"
 uv run python radar.py --togli-avvio      la toglie

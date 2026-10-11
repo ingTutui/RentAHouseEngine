@@ -39,26 +39,27 @@ def test_giro_completo(cartella, server):
     assert giro(cartella) == 0 and tg.messaggi == []
 
     # 2) tre annunci nuovi: uno va bene, uno costa troppo, uno ha i dati solo nella sua pagina
-    a += [("bilocale-arredato-casinalbo-1003", "Bilocale arredato a Casinalbo", "58 mq · € 650/mese · 2 locali"),
-          ("bilocale-caro-1004", "Bilocale signorile a Formigine", "60 mq · € 750/mese"),
+    #    (valori lontani dalle soglie di config.toml, cosi' ritoccare i filtri non rompe il test)
+    a += [("bilocale-arredato-casinalbo-1003", "Bilocale arredato a Casinalbo", "70 mq · € 600/mese · 2 locali"),
+          ("bilocale-caro-1004", "Bilocale signorile a Formigine", "75 mq · € 1.400/mese"),
           ("trilocale-giardino-1005", "Trilocale con giardino", "Scopri di più")]
     server.pagina("/a/affitti/", lista("a", a))
     server.pagina("/a/immobile/trilocale-giardino-1005/",
                   "<html><head><meta property='og:title' content='Trilocale in affitto a Spilamberto'></head>"
-                  "<body><main><h1>Trilocale con giardino</h1><p>Canone mensile 680 €. Superficie 62 mq.</p></main>"
+                  "<body><main><h1>Trilocale con giardino</h1><p>Canone mensile 620 €. Superficie 85 mq.</p></main>"
                   "</body></html>")
     assert giro(cartella) == 2
     assert len(tg.messaggi) == 2
     testi = "\n".join(tg.messaggi)
     assert "Bilocale arredato a Casinalbo" in testi and "Formigine (Casinalbo)" in testi
-    assert "€ 680/mese · 62 mq" in testi and "Spilamberto" in testi
+    assert "€ 620/mese · 85 mq" in testi and "Spilamberto" in testi
     assert "Bilocale signorile" not in testi
     assert testi.count("Non ancora su Immobiliare.it") == 2
 
     # 3) lo stesso bilocale compare sul sito di un'altra agenzia: non viene segnalato di nuovo
     server.pagina("/b/affitti/", lista("b", [
         ("quadrilocale-sacca-2001", "Quadrilocale Sacca", "Modena · 110 mq · € 1.300/mese"),
-        ("bilocale-casinalbo-2002", "Appartamento bilocale Casinalbo", "Formigine · 58 mq · € 650/mese · 2 locali")]))
+        ("bilocale-casinalbo-2002", "Appartamento bilocale Casinalbo", "Formigine · 70 mq · € 600/mese · 2 locali")]))
     assert giro(cartella) == 0 and len(tg.messaggi) == 2
     arc = Archivio(cartella / "stato" / "radar.db")
     assert arc.stato_di(server.url("/b/immobile/bilocale-casinalbo-2002", host="localhost")) == "doppione"
@@ -71,7 +72,7 @@ def test_giro_completo(cartella, server):
     adesso = datetime.now()
     scrivi_locale(cartella, LOCALE.format(dalle=(adesso - timedelta(hours=1)).strftime("%H:%M"),
                                           alle=(adesso + timedelta(hours=1)).strftime("%H:%M")))
-    a.append(("monolocale-grande-1006", "Bilocale luminoso a Formigine", "56 mq · € 590/mese"))
+    a.append(("monolocale-grande-1006", "Bilocale luminoso a Formigine", "90 mq · € 520/mese"))
     server.pagina("/a/affitti/", lista("a", a))
     assert giro(cartella) == 1 and len(tg.messaggi) == 2
     scrivi_locale(cartella, LOCALE.format(dalle="", alle=""))
@@ -141,11 +142,11 @@ def test_con_llm(cartella, server):
 
 def test_sito_rifatto_non_manda_raffiche(cartella, server):
     tg = FintoTelegram(server)
-    vecchi = [(f"bilocale-numero-{i}", f"Bilocale {i}", f"{55 + i} mq · € {500 + i * 10}/mese") for i in range(6)]
+    vecchi = [(f"bilocale-numero-{i}", f"Bilocale {i}", f"{75 + i} mq · € {500 + i * 10}/mese") for i in range(6)]
     server.pagina("/d/affitti/", lista("d", vecchi))
     aggiungi_agenzia(cartella, "Agenzia Delta", "Modena", server.url("/d/affitti/"))
     giro(cartella)
-    nuovi = [(f"immobile-bilocale-{i}-codice", f"Bilocale {i}", f"{55 + i} mq · € {500 + i * 10}/mese") for i in range(6)]
+    nuovi = [(f"immobile-bilocale-{i}-codice", f"Bilocale {i}", f"{75 + i} mq · € {500 + i * 10}/mese") for i in range(6)]
     server.pagina("/d/affitti/", lista("d", nuovi))
     assert giro(cartella) == 0 and tg.messaggi == []
 

@@ -1,5 +1,5 @@
 @echo off
-rem Radar Affitti: controllo automatico ogni 30 minuti su questo PC (doppio clic). Serve uv.
+rem Radar Affitti: controllo automatico (intervallo_minuti in config.toml) su questo PC (doppio clic). Serve uv.
 cd /d "%~dp0.."
 set "UV=uv"
 where uv >nul 2>nul || set "UV=%USERPROFILE%\.local\bin\uv.exe"
