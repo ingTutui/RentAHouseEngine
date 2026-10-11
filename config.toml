@@ -8,8 +8,8 @@
 
 [filtri]
 prezzo_min = 0                      # 0 = nessun limite
-prezzo_max = 700                    # canone mensile massimo in euro, spese escluse
-mq_min = 55
+prezzo_max = 750                    # canone mensile massimo in euro, spese escluse
+mq_min = 60
 mq_max = 0
 locali_min = 0
 escludi_stanze = true               # niente stanze e posti letto
@@ -24,7 +24,7 @@ comuni_area = ["Modena", "Campogalliano", "Soliera", "Bastiglia", "Nonantola", "
                "Formigine", "Fiorano Modenese", "Maranello", "Rubiera", "San Martino in Rio",
                "Sassuolo", "Casalgrande"]
 # frazioni fuori area dei comuni inclusi, e paesi vicini: se un annuncio le cita arriva con un avviso
-zone_fuori_area = ["Limidi", "Sozzigalli", "Manzolino", "Riolo", "Rastellino", "Piumazzo", "Cavazzona",
+zone_fuori_area = ["Sozzigalli", "Manzolino", "Riolo", "Rastellino", "Piumazzo", "Cavazzona",
                    "Redù", "Via Larga", "Carpi", "Correggio", "Bomporto", "Sorbara", "Ravarino", "Vignola",
                    "Savignano", "Scandiano", "Castellarano", "Serramazzoni"]
 fuori_zona = "scarta"               # annuncio in un comune sicuramente fuori area: "scarta" oppure "segnala"
@@ -63,10 +63,10 @@ usa = true                          # serve anche OPENROUTER_API_KEY nel file .e
 file_modello = "llm.toml"
 max_chiamate_per_controllo = 40
 max_chiamate_al_giorno = 300
-max_spesa_giornaliera_usd = 0.5     # oltre questa spesa, per il resto del giorno lavora senza LLM
+max_spesa_giornaliera_usd = 1     # oltre questa spesa, per il resto del giorno lavora senza LLM
 
 [esecuzione]
-intervallo_minuti = 30              # avvio automatico e "python radar.py --loop"
+intervallo_minuti = 60              # avvio automatico e "python radar.py --loop"
 pausa_stesso_sito_sec = 4           # pausa minima tra due richieste allo stesso sito
 timeout_sec = 25
 usa_browser_per_js = true           # per i siti che caricano gli annunci in JavaScript (serve Playwright)
