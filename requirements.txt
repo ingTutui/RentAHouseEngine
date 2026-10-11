@@ -1,7 +1,0 @@
-requests>=2.31
-beautifulsoup4>=4.12
-lxml>=5.0
-tomli>=2.0; python_version < "3.11"
-# facoltativo, per i siti che caricano gli annunci in JavaScript:
-#   pip install playwright
-#   python -m playwright install chromium

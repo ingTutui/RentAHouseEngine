@@ -1,42 +1,87 @@
 # Radar Affitti - impostazioni
-# Modifica i valori a destra del segno "=". Le righe che iniziano con # sono commenti.
+#
+# Questo file sta nel repository: vale sia sul PC sempre acceso sia su quello dove programmi.
+# Per cambiare qualcosa solo su un PC crea accanto un file config.local.toml con la stessa sezione,
+# per esempio:   [notifiche]
+#                silenzio_dalle = "23:00"
+# config.local.toml non finisce su GitHub. Token e chiavi NON vanno qui: vanno nel file .env.
 
-[telegram]
-# Li compila da solo il comando:  python radar.py --telegram-setup
-token = ""
-chat_id = ""
+[filtri]
+prezzo_min = 0                      # 0 = nessun limite
+prezzo_max = 700                    # canone mensile massimo in euro, spese escluse
+mq_min = 55
+mq_max = 0
+locali_min = 0
+escludi_stanze = true               # niente stanze e posti letto
+dati_mancanti = "invia"             # se prezzo o metratura non si trovano nemmeno nella pagina dell'annuncio:
+                                    # "invia" (arriva con "prezzo non indicato") oppure "scarta"
+prezzo_affitto_plausibile_max = 6000
+tipi_esclusi = ["negozio", "ufficio", "capannone", "magazzino", "laboratorio", "terreno",
+                "garage", "box", "posto auto", "locale commerciale"]
+# l'area di ricerca (vedi la mappa): comuni interi
+comuni_area = ["Modena", "Campogalliano", "Soliera", "Bastiglia", "Nonantola", "Castelfranco Emilia",
+               "San Cesario sul Panaro", "Spilamberto", "Castelnuovo Rangone", "Castelvetro di Modena",
+               "Formigine", "Fiorano Modenese", "Maranello", "Rubiera", "San Martino in Rio",
+               "Sassuolo", "Casalgrande"]
+# frazioni fuori area dei comuni inclusi, e paesi vicini: se un annuncio le cita arriva con un avviso
+zone_fuori_area = ["Limidi", "Sozzigalli", "Manzolino", "Riolo", "Rastellino", "Piumazzo", "Cavazzona",
+                   "Redù", "Via Larga", "Carpi", "Correggio", "Bomporto", "Sorbara", "Ravarino", "Vignola",
+                   "Savignano", "Scandiano", "Castellarano", "Serramazzoni"]
+fuori_zona = "scarta"               # annuncio in un comune sicuramente fuori area: "scarta" oppure "segnala"
+                                    # (se il luogo e' solo citato nel testo arriva comunque, con un avviso)
+
+[filtri.frazioni_area]              # comuni di cui sono nell'area solo alcune frazioni
+"Reggio nell'Emilia" = ["Bagno", "Marmirolo", "Castellazzo", "Corticella"]
+"Scandiano" = ["Arceto", "Cacciola"]
+"Carpi" = ["Gargallo"]
+"Correggio" = ["Prato"]
+"Bomporto" = ["Villavara"]
+
+[notifiche]
+silenzio_dalle = "22:00"            # niente messaggi tra queste due ore ("" = mai silenzio):
+silenzio_alle = "08:00"             # quello che il radar trova di notte ti arriva tutto insieme alle 8
+max_messaggi_singoli = 15           # oltre questo numero arriva un unico elenco
+anteprima_link = true               # foto dell'annuncio sotto al messaggio
+avvisi_guasti = true                # fonti rotte: una riga in fondo a un messaggio con novita', max 1 a settimana
+guasto_dopo_ore = 24                # una fonte e' "rotta" se non funziona da almeno 24 ore
+avvisi_guasti_ogni_giorni = 7
+guasti_da_soli_dopo_giorni = 3      # messaggio a parte solo se non ci sono novita' da 3 giorni
+
+[doppioni]
+finestra_giorni = 120               # confronta con gli annunci visti negli ultimi 4 mesi
+tolleranza_prezzo_pct = 3           # stesso immobile anche se il prezzo cambia di poco (ripubblicazioni)
+tolleranza_mq = 3
+chiedi_llm_nei_dubbi = true         # nei casi incerti decide l'LLM (se configurato)
+
+[dettagli]
+leggi_pagina_annuncio = true        # per gli annunci nuovi dei siti delle agenzie apre la scheda dell'annuncio
+anche_portali_se_mancano_dati = true  # sui portali solo se nell'elenco mancano prezzo o metratura
+max_pagine_per_controllo = 40
+
+[llm]
+usa = true                          # serve anche OPENROUTER_API_KEY nel file .env e il modello in llm.toml
+file_modello = "llm.toml"
+max_chiamate_per_controllo = 40
+max_chiamate_al_giorno = 300
+max_spesa_giornaliera_usd = 0.5     # oltre questa spesa, per il resto del giorno lavora senza LLM
 
 [esecuzione]
-intervallo_minuti = 30              # usato da "python radar.py --loop 30"
+intervallo_minuti = 30              # avvio automatico e "python radar.py --loop"
 pausa_stesso_sito_sec = 4           # pausa minima tra due richieste allo stesso sito
 timeout_sec = 25
 usa_browser_per_js = true           # per i siti che caricano gli annunci in JavaScript (serve Playwright)
 pagine_iniziali_immobiliare = 30    # al primo avvio legge tutte le pagine di Immobiliare.it per comune
 pagine_ordinarie_immobiliare = 1    # poi solo la prima (i piu' recenti)
-max_messaggi_singoli = 15           # oltre questo numero arriva un unico riepilogo
 notifica_prima_esecuzione = false   # al primo controllo di una fonte salva tutto senza avvisarti
-avvisa_fonte_ko_dopo = 3            # avviso Telegram se una fonte fallisce N volte di fila
 connessioni_parallele = 6           # siti diversi letti in parallelo (lo stesso sito sempre uno alla volta)
 
-[filtri]
-prezzo_min = 0                      # 0 = nessun limite
-prezzo_max = 0                      # es. 1000 per ricevere solo affitti fino a 1000 euro
-mq_min = 0
-locali_min = 0                      # es. 2 per escludere i monolocali
-escludi_stanze = false              # true per non ricevere stanze e posti letto
-prezzo_affitto_plausibile_max = 6000
-tipi_esclusi = ["negozio", "ufficio", "capannone", "magazzino", "laboratorio", "terreno",
-                "garage", "box", "posto auto", "locale commerciale"]
-# frazioni e comuni vicini fuori dalla tua area: se un annuncio li cita viene segnalato
-zone_fuori_area = ["Limidi", "Sozzigalli", "Manzolino", "Riolo", "Piumazzo", "Cavazzona", "Redù",
-                   "Via Larga", "Carpi", "Correggio", "Bomporto", "Sorbara", "Ravarino", "Vignola",
-                   "Savignano", "Scandiano", "Castellarano", "Serramazzoni"]
-zone_fuori_area_azione = "segnala"  # "segnala" oppure "scarta"
+[aggiornamento]
+automatico = true                   # con --servizio scarica da solo le nuove versioni dal ramo main
+remoto = "origin"
+ramo = "main"
 
 [idealista]
-# Solo API ufficiale: chiedi le chiavi su https://developers.idealista.com/access-request
-api_key = ""
-api_secret = ""
+# solo API ufficiale: le chiavi vanno nel file .env (IDEALISTA_API_KEY, IDEALISTA_API_SECRET)
 centro = "44.6471,10.9252"          # Modena centro
 raggio_metri = 16000
 since_date = "T"                    # T = pubblicati nell'ultimo giorno
