@@ -15,7 +15,7 @@ from motore.archivio import Archivio
 from motore.config import carica_config
 from motore.servizio import Blocco
 
-from conftest import RADICE
+from conftest import RADICE, a_toml, config_di_prova
 
 pytestmark = pytest.mark.skipif(shutil.which("git") is None, reason="git non installato")
 GIT = ["git", "-c", "commit.gpgsign=false", "-c", "user.name=Prova", "-c", "user.email=prova@example.com"]
@@ -73,6 +73,47 @@ def test_aggiornamento_buono_e_rotto(repo):
     corretta = pubblica(dev, "config.toml", (RADICE / "config.toml").read_text(encoding="utf-8"), "config corretta")
     assert aggiorna(pc, cfg, arc) is True and git(pc, "rev-parse", "HEAD") == corretta
     assert arc.get("aggiornamento_fallito") == ""
+    arc.chiudi()
+
+
+def config_con(**filtri) -> str:
+    """config.toml completo (configurazione di prova) con i filtri cambiati: indipendente dal config.toml vero."""
+    cfg = config_di_prova()
+    cfg["filtri"].update(filtri)
+    return a_toml(cfg)
+
+
+def test_una_modifica_ai_soli_filtri_viene_presa_dal_pc_acceso(repo):
+    # il caso piu' comune: si ritocca config.toml (prezzo, metri...) e basta
+    pc, dev = repo
+    arc = Archivio(pc / "stato" / "radar.db")
+    nuova = pubblica(dev, "config.toml", config_con(prezzo_max=1234, mq_min=0), "filtri cambiati")
+    assert aggiorna(pc, carica_config(pc), arc) is True
+    assert git(pc, "rev-parse", "HEAD") == nuova
+    f = carica_config(pc)["filtri"]
+    assert (f["prezzo_max"], f["mq_min"]) == (1234, 0)
+    assert arc.get("aggiornamento_fallito") == ""
+    arc.chiudi()
+
+
+@pytest.mark.parametrize(("filtri", "chiave"), [
+    ({"prezzo_max": "800"}, "prezzo_max"),                    # numero tra virgolette: il filtro darebbe TypeError
+    ({"tipi_esclusi": ["", "negozio"]}, "tipi_esclusi"),      # stringa vuota: scarterebbe ogni annuncio
+], ids=["prezzo-tra-virgolette", "tipo-vuoto"])
+def test_una_configurazione_con_un_valore_sbagliato_non_viene_tenuta(repo, filtri, chiave):
+    # TOML valido ma valori che romperebbero il radar: la verifica li ferma e il PC resta alla versione di prima
+    pc, dev = repo
+    arc = Archivio(pc / "stato" / "radar.db")
+    cfg = carica_config(pc)
+    prima = git(pc, "rev-parse", "HEAD")
+    rotta = pubblica(dev, "config.toml", config_con(**filtri), "filtri sbagliati")
+    assert aggiorna(pc, cfg, arc) is False
+    assert git(pc, "rev-parse", "HEAD") == prima
+    assert arc.get("aggiornamento_scartato") == rotta
+    assert "la verifica non e' passata" in arc.get("aggiornamento_fallito") and chiave in arc.get("aggiornamento_fallito")
+    assert carica_config(pc)["filtri"]["prezzo_max"] == carica_config(RADICE)["filtri"]["prezzo_max"]   # filtri di prima
+    corretta = pubblica(dev, "config.toml", config_con(), "filtri corretti")
+    assert aggiorna(pc, cfg, arc) is True and git(pc, "rev-parse", "HEAD") == corretta
     arc.chiudi()
 
 

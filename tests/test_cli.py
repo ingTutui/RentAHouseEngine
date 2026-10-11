@@ -3,7 +3,7 @@ import sys
 
 from motore.cli import main
 
-from conftest import RADICE
+from conftest import RADICE, scrivi_locale
 
 
 def test_comandi_di_consultazione_su_un_clone_appena_fatto(cartella, capsys):
@@ -21,6 +21,18 @@ def test_la_verifica_del_repository_passa(capsys):
     # e' lo stesso controllo che l'aggiornamento automatico fa prima di tenere una versione nuova
     assert main(["--cartella", str(RADICE), "--verifica"]) == 0
     assert "Verifica OK" in capsys.readouterr().out
+
+
+def test_la_verifica_rifiuta_una_configurazione_sbagliata(cartella, capsys):
+    # e' il controllo che impedisce all'aggiornamento automatico di tenere un config.toml con valori che rompono il radar
+    assert main(["--cartella", str(cartella), "--verifica"]) == 0
+    capsys.readouterr()
+    scrivi_locale(cartella, '[filtri]\nprezzo_max = "800"\n')
+    assert main(["--cartella", str(cartella), "--verifica"]) == 1
+    fuori = capsys.readouterr().out
+    assert "Verifica NON superata" in fuori and "prezzo_max" in fuori
+    scrivi_locale(cartella, "[filtri]\nprezzo_max = 800\n")           # corretto: torna a passare
+    assert main(["--cartella", str(cartella), "--verifica"]) == 0
 
 
 def test_con_un_python_vecchio_esce_con_un_messaggio_chiaro():
