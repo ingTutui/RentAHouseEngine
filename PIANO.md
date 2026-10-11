@@ -21,7 +21,7 @@ Gli annunci presenti solo sul sito di un'agenzia sono il vantaggio: arrivano per
 | # | Requisito | Valore | Dove si regola | Codice | Test |
 |---|---|---|---|---|---|
 | 1 | Incrementale: un annuncio già segnalato non si segnala di nuovo, nemmeno se compare su un'altra fonte | | `[doppioni]` | archivio.py, doppioni.py, controllo.py | test_archivio, test_doppioni, test_integrazione |
-| 2 | Filtri | affitto fino a 750 €/mese (spese condominiali escluse), almeno 60 mq, niente stanze, negozi, uffici, box | `[filtri]` | analisi.py (`scarta`) | test_filtri |
+| 2 | Filtri | affitto fino a 800 €/mese (spese condominiali escluse), almeno 60 mq, niente stanze, negozi, uffici, box (valori in `config.toml`, i test non li fissano) | `[filtri]` | analisi.py (`scarta`) | test_filtri, test_configurazione |
 | 3 | Orari | silenzio dalle 22:00 alle 08:00: il radar controlla comunque, i messaggi restano in coda e partono dopo le 8 | `[notifiche]` | notifiche.py (`in_silenzio`, `consegna`) | test_notifiche |
 | 4 | Solo novità: se non trova nulla non scrive | eccezione: avvisi sulle fonti rotte (vedi sezione 5) | `[notifiche]` | notifiche.py | test_notifiche |
 | 5 | Repository GitHub, aggiornamenti con pull request; il PC sempre acceso scarica da solo `main` | https://github.com/ingTutui/RentAHouseEngine | `[aggiornamento]` | aggiorna.py, servizio.py | test_aggiorna |
@@ -29,10 +29,12 @@ Gli annunci presenti solo sul sito di un'agenzia sono il vantaggio: arrivano per
 | 7 | Due PC: uno sempre acceso (gira il radar), uno poco usato e spesso spento dove si programma | | | | |
 | 8 | Python 3.14 e librerie alle versioni più recenti, gestiti con **uv**: il Python giusto per il venv lo sceglie uv | requests 2.34, beautifulsoup4 4.15, lxml 6.1; versioni esatte in `uv.lock` | `pyproject.toml`, `uv.lock`, `.python-version` | tutto, aggiorna.py | test_cli, test_progetto, test_aggiorna |
 | 9 | Rispetto dei siti: robots.txt, una richiesta alla volta per sito con pausa | | `[esecuzione]` | rete.py | test_rete |
+| 10 | Ritoccare `config.toml` non deve rompere né il radar né l'aggiornamento automatico: i valori sbagliati (tipo, scelta che non esiste, orario illeggibile, elenco con stringa vuota) fermano la versione prima che arrivi sul PC sempre acceso | | tutto `config.toml` | config.py (`controlla_config`), verifica.py, aggiorna.py | test_configurazione, test_aggiorna, test_cli |
+| 11 | Le regole del progetto (CLAUDE.md) sono controllate dai test: segreti fuori da git, TLS attivo, solo le librerie ammesse, modello solo in `llm.toml`, fine riga dei `.bat` | | | | test_architettura |
 
 Scelte fatte dall'utente rispondendo alle domande: prezzo massimo 700 € al mese, almeno 55 mq, silenzio
-22:00-08:00 (l'11 ottobre 2026 l'utente ha portato i filtri a 750 € e 60 mq, il controllo a ogni ora e il limite
-LLM a 1 $ al giorno), GitHub con pull request (così sul PC sempre acceso arriva solo ciò che l'utente unisce a `main`).
+22:00-08:00 (l'11 ottobre 2026 l'utente ha portato i filtri a 750 € e 60 mq, poi il prezzo a 800 €, il controllo a
+ogni ora e il limite LLM a 1 $ al giorno), GitHub con pull request (così sul PC sempre acceso arriva solo ciò che l'utente unisce a `main`).
 Telegram per le notifiche e radar sul proprio computer (non nel cloud) erano già decisi prima.
 
 ## 3. Area di ricerca
@@ -143,19 +145,40 @@ il controllo in un processo nuovo con il codice nuovo.
   (`uv sync --extra browser`). Il processo che aggiorna resta «leggero» (nessun requests, bs4 o lxml caricato, anche
   tramite archivio e estrazione): su Windows uv non può sostituire i file di una libreria in uso. Cambiare versione
   di Python resta un'operazione a mano (`git pull` e `uv sync` sul PC sempre acceso).
+- **I test non fissano i valori di `config.toml`.** Il 11 ottobre 2026 l'utente ha cambiato prezzo e metratura e
+  quattro test sono diventati rossi: legavano il comportamento ai valori scelti. Ora i test del comportamento usano
+  `config_di_prova()` (`tests/conftest.py`: filtri, orari e comuni fissi; la fixture `cartella` scrive un
+  `config.toml` di prova) e `test_configurazione.py` legge i valori dal file vero (soglie al limite e oltre, orario
+  di silenzio, comuni, intervallo, `llm.toml`, fonti, un giro completo con i filtri veri), perciò fallisce solo se
+  il file è sbagliato. Provato cambiando davvero i valori: nessun limite, limiti stretti con silenzio a cavallo di
+  mezzanotte, silenzio di giorno e altro modello; tutti i test passano.
+- **`--verifica` controlla i valori di configurazione** (`controlla_config` in config.py, solo libreria standard).
+  Prima non lo faceva: `prezzo_max = "800"` (TOML valido) passava, il PC sempre acceso teneva la versione e il filtro
+  dava `TypeError` ad ogni annuncio; una stringa vuota in `tipi_esclusi` scartava tutto; un orario di silenzio scritto
+  male era ignorato in silenzio. Le chiavi sconosciute (refusi) sono controllate solo dai test sul `config.toml` del
+  repository, non da `--verifica`: un `config.local.toml` con una chiave tolta in una versione futura non deve
+  bloccare gli aggiornamenti. `llm.toml` scritto male resta tollerato (l'LLM si spegne, il radar va avanti): lo
+  controlla solo `test_configurazione`.
+- **Test veloci.** Su Windows ogni richiesta a `localhost` costa 2 secondi (prova prima IPv6), contro zero per
+  `127.0.0.1`: due test d'integrazione lo usavano per avere un «secondo sito» e un giro completo durava 40 s. Ora
+  usano `127.0.0.1` (nessuna logica dipende dal nome dell'host); nei test si usa sempre `127.0.0.1`, mai `localhost`.
+  L'attesa casuale (fino a 1,5 s) che rete.py aggiunge tra due richieste allo stesso sito è azzerata dalla fixture
+  `senza_attese_casuali`; la pausa vera la prova `test_rete`.
 - **Struttura.** Il codice è in `motore/`, i dati che cambiano in `stato/` (ignorata da git), le fonti in `fonti/`.
 
 ## 6. Stato
 
 ### Fatto e verificato
 
-- 85 test automatici (`uv run pytest`) passano su Python 3.14.6 con requests 2.34.2, beautifulsoup4 4.15.0, lxml
-  6.1.3, pytest 9.1.1 (le versioni di `uv.lock`); `uv run ruff check .` pulito (target py314);
-  `uv run python radar.py --verifica` OK; lo stesso da un clone pulito, con `uv sync` che parte senza Python 3.14 sul
-  PC e lo scarica da solo.
+- 225 test automatici (`uv run pytest`, circa due minuti) passano su Python 3.14.6 con requests 2.34.2,
+  beautifulsoup4 4.15.0, lxml 6.1.3, pytest 9.1.1 (le versioni di `uv.lock`); `uv run ruff check .` pulito (target
+  py314); `uv run python radar.py --verifica` OK; lo stesso da un clone pulito, con `uv sync` che parte senza
+  Python 3.14 sul PC e lo scarica da solo.
 - I test usano un piccolo server locale che fa da sito di agenzia, da Telegram e da OpenRouter: coprono estrazione,
-  filtri, area, doppioni, silenzio e coda, guasti, client LLM, aggiornamento automatico con repository git veri,
-  comandi su un clone appena fatto.
+  filtri (ogni soglia, 0 = nessun limite, tipi esclusi, area), doppioni, silenzio e coda, guasti, client LLM,
+  aggiornamento automatico con repository git veri (anche una modifica ai soli filtri e una con valori sbagliati),
+  comandi su un clone appena fatto, controllo dei valori di configurazione, regole del progetto
+  (`test_architettura`), pausa tra richieste allo stesso sito.
 - Playwright 1.63 (facoltativo, extra `browser`) si installa e si importa su Python 3.14.
 
 ### Non verificato (serve il PC reale)
@@ -205,3 +228,7 @@ il controllo in un processo nuovo con il codice nuovo.
    controllo ogni ora e a 1 $ al giorno di LLM; client OpenRouter rivisto sulla documentazione, modello Haiku 5.5.
 8. Revisione del codice: prime letture vuote, errori che fermavano il controllo, prezzo unito alla metratura
    ("€ 700 105 mq" letto come 700.105 €), messaggi rifiutati da Telegram che bloccavano la coda.
+9. L'utente cambia a mano `config.toml` (prezzo, metratura, orari) e quattro test diventano rossi; chiede test che
+   non dipendano dai valori scelti e test sensati su architettura e problemi possibili (11 ottobre 2026): configurazione
+   di prova fissa per i test del comportamento, `test_configurazione.py` parametrico sul file vero,
+   `test_architettura.py`, `--verifica` che controlla i valori di `config.toml`, prezzo massimo a 800 €.

@@ -4,12 +4,11 @@ from datetime import datetime, timedelta
 
 from motore.analisi import Annuncio
 from motore.archivio import Archivio
-from motore.config import carica_config
 from motore.notifiche import Telegram, consegna, in_silenzio, messaggio
 
-from conftest import RADICE, FintoTelegram
+from conftest import FintoTelegram, config_di_prova
 
-CFG = carica_config(RADICE)
+CFG = config_di_prova()
 
 
 def test_orario_di_silenzio():

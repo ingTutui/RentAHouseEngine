@@ -1,13 +1,14 @@
 import copy
 
+import pytest
+
 from motore.analisi import Annuncio, analizza, aggiorna_area, e_stanza, importi, leggi_numeri, scarta
 from motore.comuni import comune_ufficiale, trova_luogo, valuta_area
-from motore.config import carica_config
 from motore.fonti import Fonte
 
-from conftest import RADICE
+from conftest import config_di_prova
 
-CFG = carica_config(RADICE)
+CFG = config_di_prova()
 AGENZIA = Fonte("agenzia", "Agenzia Prova", "Sassuolo", "https://ag.it/affitti/")
 
 
@@ -16,13 +17,6 @@ def nuovo(**k) -> Annuncio:
                 comune_fonte="Sassuolo", titolo="Bilocale", testo="")
     base.update(k)
     return Annuncio(**base)
-
-
-def test_valori_scelti_da_ste():
-    # l'unico test legato ai valori di config.toml: se li cambi, aggiorna anche questo (e PIANO.md)
-    f = CFG["filtri"]
-    assert (f["prezzo_max"], f["mq_min"], f["escludi_stanze"]) == (750, 60, True)
-    assert (CFG["notifiche"]["silenzio_dalle"], CFG["notifiche"]["silenzio_alle"]) == ("22:00", "08:00")
 
 
 def test_prezzo_e_metratura():
@@ -61,8 +55,7 @@ def test_comuni_e_frazioni():
 
 
 def test_area():
-    f = copy.deepcopy(CFG["filtri"])
-    f["zone_fuori_area"].append("Limidi")        # frazione di Soliera esclusa (fissa qui, non da config.toml)
+    f = CFG["filtri"]                            # Limidi: frazione di Soliera esclusa (vedi FILTRI_PROVA)
     assert valuta_area("Formigine", None, "", f)[0] == "dentro"
     assert valuta_area("Vignola", None, "", f) == ("fuori", "Vignola")
     assert valuta_area("Carpi", "Gargallo", "", f)[0] == "dentro"
@@ -83,6 +76,57 @@ def test_fuori_zona_scarta_solo_se_sicuro():
     c = analizza("u2", "https://ag.it/immobile/bilocale-2", "Bilocale a Pavullo 60 mq € 600/mese",
                  "Bilocale a Pavullo", AGENZIA, CFG)
     assert (c.comune, c.origine_luogo, c.area, scarta(c, CFG)) == ("Pavullo nel Frignano", "testo", "fuori", "")
+
+
+NESSUN_LIMITE = dict(prezzo_min=0, prezzo_max=0, mq_min=0, mq_max=0, locali_min=0)
+SOGLIE = [   # (chiave in config, valore, annuncio sul limite, annuncio appena oltre, motivo dello scarto)
+    ("prezzo_min", 400, dict(prezzo=400, mq=70), dict(prezzo=399, mq=70), "prezzo basso"),
+    ("prezzo_max", 700, dict(prezzo=700, mq=70), dict(prezzo=701, mq=70), "prezzo alto"),
+    ("mq_min", 55, dict(prezzo=600, mq=55), dict(prezzo=600, mq=54), "metratura piccola"),
+    ("mq_max", 120, dict(prezzo=600, mq=120), dict(prezzo=600, mq=121), "metratura grande"),
+    ("locali_min", 2, dict(prezzo=600, mq=70, locali=2), dict(prezzo=600, mq=70, locali=1), "pochi locali"),
+]
+
+
+@pytest.mark.parametrize(("chiave", "valore", "sul_limite", "oltre", "motivo"), SOGLIE, ids=[s[0] for s in SOGLIE])
+def test_ogni_soglia_vale_esattamente_come_scritta(chiave, valore, sul_limite, oltre, motivo):
+    cfg = copy.deepcopy(CFG)
+    cfg["filtri"].update(NESSUN_LIMITE)           # una soglia alla volta
+    cfg["filtri"][chiave] = valore
+    assert scarta(nuovo(**sul_limite), cfg) == ""      # il valore scritto in config e' ancora ammesso
+    assert scarta(nuovo(**oltre), cfg) == motivo
+    cfg["filtri"][chiave] = 0                          # 0 = nessun limite
+    assert scarta(nuovo(**oltre), cfg) == ""
+
+
+def test_senza_limiti_e_senza_area_non_si_scarta_per_prezzo_metratura_o_comune():
+    cfg = copy.deepcopy(CFG)
+    cfg["filtri"].update(NESSUN_LIMITE, comuni_area=[], dati_mancanti="scarta")
+    assert scarta(nuovo(prezzo=5000, mq=15), cfg) == ""
+    assert scarta(nuovo(prezzo=None, mq=None), cfg, finale=True) == ""   # senza soglie il dato mancante non conta
+    a = nuovo(prezzo=600, mq=60, comune="Vignola", origine_luogo="dettaglio")
+    aggiorna_area(a, cfg)
+    assert a.area == "sconosciuto" and scarta(a, cfg) == ""              # area non configurata: nessuno scarto
+
+
+@pytest.mark.parametrize("tipo", CFG["filtri"]["tipi_esclusi"])
+def test_tipi_esclusi(tipo):
+    assert scarta(nuovo(titolo=f"{tipo.capitalize()} in affitto", prezzo=500, mq=70), CFG) != ""
+    assert scarta(nuovo(titolo="Bilocale luminoso", prezzo=500, mq=70), CFG) == ""
+
+
+def test_fuori_zona_segnala_non_scarta():
+    cfg = copy.deepcopy(CFG)
+    cfg["filtri"]["fuori_zona"] = "segnala"
+    a = nuovo(prezzo=600, mq=60, comune="Vignola", origine_luogo="dettaglio")
+    aggiorna_area(a, cfg)
+    assert a.area == "fuori" and scarta(a, cfg) == ""
+
+
+def test_stanze_se_non_escluse_arrivano():
+    cfg = copy.deepcopy(CFG)
+    cfg["filtri"]["escludi_stanze"] = False
+    assert scarta(nuovo(prezzo=350, mq=None, stanza=True), cfg) == ""
 
 
 def test_prezzo_seguito_dalla_metratura():

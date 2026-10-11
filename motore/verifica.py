@@ -8,7 +8,7 @@ from datetime import datetime
 from pathlib import Path
 from collections.abc import Callable
 
-from .config import Percorsi, carica_config, carica_segreti
+from .config import Percorsi, carica_config, carica_segreti, controlla_config
 
 HTML_PORTALE = """<ul><li class="in-card"><a href="https://www.immobiliare.it/annunci/131929004/"
 title="Bilocale via Emilia Centro, Modena">Bilocale via Emilia Centro, Modena</a><div>€ 650/mese · 2 locali · 60 m²</div></li>
@@ -38,6 +38,10 @@ def verifica(base: Path) -> int:
 
     prova("configurazione", config_ok)
     if not cfg:
+        return _fine(errori)
+    problemi = controlla_config(cfg)  # valori che il file TOML accetta ma che romperebbero il radar
+    if problemi:
+        errori.extend(f"configurazione: {p}" for p in problemi)
         return _fine(errori)
 
     def fonti_ok() -> bool:

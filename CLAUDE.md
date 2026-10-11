@@ -25,7 +25,7 @@ l'area di ricerca, le mappe, gli elenchi delle agenzie).
 
 ```
 uv sync                                   # una volta: .venv con Python 3.14 e le librerie (anche pytest e ruff)
-uv run pytest                             # 85 test, circa due minuti, nessuna rete (siti, Telegram e OpenRouter finti)
+uv run pytest                             # 225 test, circa due minuti, nessuna rete (siti, Telegram e OpenRouter finti)
 uv run ruff check .
 uv run python radar.py --verifica         # autoverifica: la usa anche l'aggiornamento automatico
 uv run python radar.py --stato            # archivio, coda, LLM, fonti con problemi
@@ -41,6 +41,11 @@ installalo (README, «Installazione sul PC sempre acceso»).
 ## Regole
 
 - Prima di ogni commit `pytest` e `ruff` devono passare. Se aggiungi un comportamento, aggiungi il test.
+- I test del comportamento non leggono i valori di `config.toml`: usano `config_di_prova()` e la fixture `cartella`
+  (`tests/conftest.py`), così l'utente può ritoccare prezzi, orari e comuni senza rompere i test. Solo
+  `tests/test_configurazione.py` guarda il file vero e ne legge i valori (non li fissa). Se aggiungi una chiave a
+  `config.toml`, mettila anche in `DEFAULT_CFG` e in `controlla_config` (config.py): `--verifica` ferma gli
+  aggiornamenti con valori sbagliati. Nei test usa `127.0.0.1`, mai `localhost` (su Windows costa 2 secondi a richiesta).
 - Modifiche solo su un ramo (`git switch -c nome`) e pull request verso `main`. Mai push diretto su `main` (unica
   eccezione: il primo push della versione 1 nel repository ancora vuoto, PIANO.md sezione 7), mai `--force`. Il
   merge lo fa l'utente. Il PC sempre acceso scarica da solo `main` (motore/aggiorna.py) e lo tiene solo
@@ -79,7 +84,7 @@ installalo (README, «Installazione sul PC sempre acceso»).
 | notifiche.py | Messaggi Telegram, orario di silenzio, coda, avvisi sulle fonti rotte |
 | llm.py | Client OpenRouter (JSON strutturato, limiti di spesa, cache) |
 | idealista.py | API ufficiale di Idealista (serve la chiave) |
-| config.py | `config.toml` + `config.local.toml` + `.env` |
+| config.py | `config.toml` + `config.local.toml` + `.env`; `controlla_config` rifiuta i valori sbagliati (la usa `--verifica`) |
 | aggiorna.py, servizio.py, verifica.py, avvio.py | Aggiornamento automatico da GitHub (codice e, con `uv sync`, librerie), modalità servizio, autoverifica, avvio automatico (Windows, cron) con il Python di `.venv` |
 
 I test sono in `tests/` (uno per area, `conftest.py` ha i server finti).

@@ -1,14 +1,12 @@
-import copy
-
-from motore.config import carica_config
+from motore import rete
 from motore.rete import Scaricatore
 
-from conftest import RADICE
+from conftest import config_di_prova
 
 
-def scaricatore() -> Scaricatore:
-    cfg = copy.deepcopy(carica_config(RADICE))
-    cfg["esecuzione"].update(pausa_stesso_sito_sec=0, timeout_sec=5, usa_browser_per_js=False)
+def scaricatore(pausa: float = 0) -> Scaricatore:
+    cfg = config_di_prova()
+    cfg["esecuzione"].update(pausa_stesso_sito_sec=pausa, timeout_sec=5, usa_browser_per_js=False)
     return Scaricatore(cfg)
 
 
@@ -39,3 +37,16 @@ def test_sito_che_rifiuta_le_richieste_automatiche(server):
     server.pagina("/affitti/", "negato", stato=403)
     html, motivo = scaricatore().scarica(server.url("/affitti/"))
     assert html is None and motivo.startswith("HTTP 403")
+
+
+def test_pausa_tra_due_richieste_allo_stesso_sito_non_tra_siti_diversi(server, monkeypatch):
+    attese = []
+    monkeypatch.setattr(rete.time, "sleep", attese.append)       # non aspetta davvero: registra quanto aspetterebbe
+    server.pagina("/a/", "<html>a</html>")
+    server.pagina("/b/", "<html>b</html>")
+    s = scaricatore(pausa=2)
+    assert s.scarica(server.url("/a/"))[0] and attese == []      # il primo accesso al sito parte subito
+    assert s.scarica(server.url("/b/"))[0]                       # stesso sito: aspetta (quasi) tutta la pausa
+    assert len(attese) == 1 and 1.5 <= attese[0] <= 2
+    s._attendi("altro-sito.example")                             # un sito mai visitato: nessuna attesa
+    assert len(attese) == 1

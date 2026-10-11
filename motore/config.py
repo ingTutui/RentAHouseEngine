@@ -128,6 +128,87 @@ def carica_config(base: Path) -> dict:
     return cfg
 
 
+_ORA = re.compile(r"\s*(\d{1,2})[:.](\d{2})\s*")  # stessa regola di notifiche._ora (qui non si importa: usa requests)
+
+# (sezione, chiave): (deve essere intero, minimo). 0 = "nessun limite" per prezzi e metrature.
+_NUMERI: dict[tuple[str, str], tuple[bool, float]] = {
+    ("filtri", "prezzo_min"): (False, 0), ("filtri", "prezzo_max"): (False, 0),
+    ("filtri", "mq_min"): (False, 0), ("filtri", "mq_max"): (False, 0), ("filtri", "locali_min"): (True, 0),
+    ("filtri", "prezzo_affitto_plausibile_max"): (False, 1),
+    ("notifiche", "max_messaggi_singoli"): (True, 1), ("notifiche", "guasto_dopo_ore"): (False, 0),
+    ("notifiche", "avvisi_guasti_ogni_giorni"): (False, 0), ("notifiche", "guasti_da_soli_dopo_giorni"): (False, 0),
+    ("doppioni", "finestra_giorni"): (False, 1), ("doppioni", "tolleranza_prezzo_pct"): (False, 0),
+    ("doppioni", "tolleranza_mq"): (False, 0),
+    ("dettagli", "max_pagine_per_controllo"): (True, 0),
+    ("llm", "max_chiamate_per_controllo"): (True, 0), ("llm", "max_chiamate_al_giorno"): (True, 0),
+    ("llm", "max_spesa_giornaliera_usd"): (False, 0),
+    ("esecuzione", "intervallo_minuti"): (True, 1), ("esecuzione", "pausa_stesso_sito_sec"): (False, 0),
+    ("esecuzione", "timeout_sec"): (False, 1), ("esecuzione", "connessioni_parallele"): (True, 1),
+    ("esecuzione", "pagine_iniziali_immobiliare"): (True, 1), ("esecuzione", "pagine_ordinarie_immobiliare"): (True, 1),
+}
+_BOOLEANI = (("filtri", "escludi_stanze"), ("notifiche", "anteprima_link"), ("notifiche", "avvisi_guasti"),
+             ("doppioni", "chiedi_llm_nei_dubbi"), ("dettagli", "leggi_pagina_annuncio"),
+             ("dettagli", "anche_portali_se_mancano_dati"), ("llm", "usa"), ("aggiornamento", "automatico"),
+             ("esecuzione", "usa_browser_per_js"), ("esecuzione", "notifica_prima_esecuzione"))
+_SCELTE = {("filtri", "dati_mancanti"): ("invia", "scarta"), ("filtri", "fuori_zona"): ("scarta", "segnala")}
+_ELENCHI = (("filtri", "tipi_esclusi"), ("filtri", "comuni_area"), ("filtri", "zone_fuori_area"))
+_TESTI = (("llm", "file_modello"), ("aggiornamento", "remoto"), ("aggiornamento", "ramo"))
+
+
+def controlla_config(cfg: dict) -> list[str]:
+    """Valori che romperebbero il radar o ne cambierebbero il comportamento senza dare errori: un numero scritto
+    tra virgolette (il filtro darebbe TypeError), una stringa vuota in tipi_esclusi (scarterebbe ogni annuncio),
+    un orario di silenzio scritto male (e' ignorato). Elenco vuoto = tutto a posto. La usa --verifica, quindi
+    l'aggiornamento automatico non tiene una versione con una configurazione cosi'."""
+    problemi: list[str] = []
+
+    def segnala(sez: str, chiave: str, valore, motivo: str) -> None:
+        letto = repr(valore)
+        problemi.append(f"[{sez}] {chiave} = {letto if len(letto) <= 40 else letto[:37] + '...'}: {motivo}")
+
+    for (sez, chiave), (intero, minimo) in _NUMERI.items():
+        v = cfg.get(sez, {}).get(chiave)
+        if isinstance(v, bool) or not isinstance(v, int if intero else (int, float)):
+            segnala(sez, chiave, v, "serve un numero intero" if intero else "serve un numero (senza virgolette)")
+        elif v < minimo:
+            segnala(sez, chiave, v, f"non puo' essere minore di {minimo:g}")
+    for sez, chiave in _BOOLEANI:
+        v = cfg.get(sez, {}).get(chiave)
+        if v is not None and not isinstance(v, bool):
+            segnala(sez, chiave, v, "serve true o false (senza virgolette)")
+    for (sez, chiave), ammessi in _SCELTE.items():
+        v = cfg.get(sez, {}).get(chiave)
+        if str(v).lower() not in ammessi:
+            segnala(sez, chiave, v, "valori ammessi: " + ", ".join(f'"{a}"' for a in ammessi))
+    for sez, chiave in _ELENCHI:
+        v = cfg.get(sez, {}).get(chiave)
+        if not isinstance(v, list) or any(not isinstance(x, str) or not x.strip() for x in v):
+            segnala(sez, chiave, v, "serve un elenco di testi, nessuno vuoto")
+    parziali = cfg.get("filtri", {}).get("frazioni_area")
+    if not isinstance(parziali, dict) or any(
+            not isinstance(v, list) or not v or any(not isinstance(x, str) or not x.strip() for x in v)
+            for v in parziali.values()):
+        segnala("filtri", "frazioni_area", parziali, "serve comune = [elenco di frazioni, nessuna vuota]")
+    for sez, chiave in _TESTI:
+        v = cfg.get(sez, {}).get(chiave)
+        if not isinstance(v, str) or not v.strip():
+            segnala(sez, chiave, v, "serve un testo non vuoto")
+    n = cfg.get("notifiche", {})
+    orari = [n.get("silenzio_dalle"), n.get("silenzio_alle")]
+    if any(not isinstance(o, str) for o in orari):
+        segnala("notifiche", "silenzio_dalle/silenzio_alle", orari, "servono testi, per esempio \"22:00\" e \"08:00\"")
+    elif any(orari) and not all(
+            (m := _ORA.fullmatch(o)) and int(m.group(1)) <= 23 and int(m.group(2)) <= 59 for o in orari):
+        segnala("notifiche", "silenzio_dalle/silenzio_alle", orari,
+                "servono due orari come \"22:00\" (o tutti e due vuoti per nessun silenzio)")
+    f = cfg.get("filtri", {})
+    for minimo, massimo in (("prezzo_min", "prezzo_max"), ("mq_min", "mq_max")):
+        a, b = f.get(minimo), f.get(massimo)
+        if all(isinstance(x, (int, float)) and not isinstance(x, bool) for x in (a, b)) and b and a > b:
+            segnala("filtri", minimo, a, f"e' maggiore di {massimo} ({b})")
+    return problemi
+
+
 def leggi_env(path: Path) -> dict[str, str]:
     valori: dict[str, str] = {}
     if not path.exists():

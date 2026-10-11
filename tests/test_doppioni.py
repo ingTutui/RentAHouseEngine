@@ -3,11 +3,10 @@ import json
 from motore import doppioni
 from motore.analisi import Annuncio
 from motore.archivio import Archivio
-from motore.config import carica_config
 
-from conftest import RADICE
+from conftest import config_di_prova
 
-CFG = carica_config(RADICE)
+CFG = config_di_prova()
 
 
 def annuncio(uid, fonte="Immobiliare.it", tipo="portale", **k) -> Annuncio:

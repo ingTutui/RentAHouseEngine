@@ -1,6 +1,11 @@
 """Strumenti comuni dei test: un piccolo server HTTP locale che fa da sito di agenzia, da Telegram e da
-OpenRouter, e una cartella del radar temporanea con le sue fonti."""
+OpenRouter, e una cartella del radar temporanea con le sue fonti.
 
+I test del comportamento (filtri, notifiche, doppioni, giri completi) usano una configurazione FISSA
+(config_di_prova), non config.toml: cambiare prezzo, metratura, orari o comuni in config.toml non li rompe.
+I test che guardano il config.toml vero stanno in test_configurazione.py e leggono i valori dal file."""
+
+import copy
 import json
 import shutil
 import sys
@@ -14,6 +19,55 @@ import pytest
 
 RADICE = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(RADICE))
+
+from motore.config import DEFAULT_CFG, Percorsi, carica_config, carica_segreti  # noqa: E402
+from motore import rete  # noqa: E402
+from motore.controllo import esegui  # noqa: E402
+
+FILTRI_PROVA = {
+    "prezzo_min": 0, "prezzo_max": 700, "mq_min": 55, "mq_max": 0, "locali_min": 0,
+    "escludi_stanze": True, "dati_mancanti": "invia", "fuori_zona": "scarta",
+    "comuni_area": ["Modena", "Formigine", "Sassuolo", "Spilamberto", "Soliera", "Castelnuovo Rangone",
+                    "Fiorano Modenese"],
+    "zone_fuori_area": ["Limidi", "Carpi", "Correggio", "Bomporto"],
+    "frazioni_area": {"Carpi": ["Gargallo"], "Reggio nell'Emilia": ["Bagno", "Marmirolo"]},
+}
+
+
+def config_di_prova() -> dict:
+    """Configurazione fissa dei test (una copia nuova a ogni chiamata, si puo' modificare)."""
+    cfg = copy.deepcopy(DEFAULT_CFG)
+    cfg["filtri"].update(copy.deepcopy(FILTRI_PROVA))
+    cfg["notifiche"].update(silenzio_dalle="22:00", silenzio_alle="08:00")
+    return cfg
+
+
+def _valore_toml(v) -> str:
+    if isinstance(v, bool):
+        return "true" if v else "false"
+    if isinstance(v, int | float):
+        return repr(v)
+    if isinstance(v, str):
+        return json.dumps(v, ensure_ascii=False)
+    if isinstance(v, list):
+        return "[" + ", ".join(_valore_toml(x) for x in v) + "]"
+    raise TypeError(f"valore non scrivibile in TOML: {v!r}")
+
+
+def a_toml(cfg: dict) -> str:
+    """Scrive una configurazione (sezioni con valori semplici e una sottosezione) come file TOML."""
+    righe: list[str] = []
+    for sezione, valori in cfg.items():
+        if sezione.startswith("_") or not isinstance(valori, dict):
+            continue
+        righe.append(f"[{sezione}]")
+        righe += [f"{json.dumps(k)} = {_valore_toml(v)}" for k, v in valori.items() if not isinstance(v, dict)]
+        for k, sotto in valori.items():
+            if isinstance(sotto, dict) and sotto:
+                righe.append(f"[{sezione}.{k}]")
+                righe += [f"{json.dumps(nome, ensure_ascii=False)} = {_valore_toml(v)}" for nome, v in sotto.items()]
+        righe.append("")
+    return "\n".join(righe)
 
 
 class Server:
@@ -115,6 +169,13 @@ class FintoOpenRouter:
             "usage": {"prompt_tokens": 1000, "completion_tokens": 100, "cost": 0.0002}})
 
 
+@pytest.fixture(autouse=True)
+def senza_attese_casuali(monkeypatch):
+    """rete.py aggiunge alla pausa tra due richieste allo stesso sito fino a 1,5 secondi a caso: nei test non serve
+    (e rallenterebbe i giri completi di minuti). La pausa vera si prova in test_rete."""
+    monkeypatch.setattr(rete.random, "uniform", lambda a, b: 0.0)
+
+
 @pytest.fixture
 def server():
     s = Server()
@@ -122,10 +183,7 @@ def server():
     s.chiudi()
 
 
-@pytest.fixture
-def cartella(tmp_path, server):
-    """Cartella del radar con config.toml del repository, fonti vuote e .env che punta ai servizi finti."""
-    shutil.copy(RADICE / "config.toml", tmp_path / "config.toml")
+def _cartella_del_radar(tmp_path, server) -> Path:
     (tmp_path / "fonti").mkdir()
     (tmp_path / "fonti" / "fonti_portali.csv").write_text("attiva;portale;comune;url;note\n", encoding="utf-8")
     (tmp_path / "fonti" / "fonti_agenzie.csv").write_text(
@@ -137,6 +195,35 @@ def cartella(tmp_path, server):
         "[esecuzione]\npausa_stesso_sito_sec = 0\ntimeout_sec = 5\nusa_browser_per_js = false\n"
         "[notifiche]\nsilenzio_dalle = \"\"\nsilenzio_alle = \"\"\n", encoding="utf-8")
     return tmp_path
+
+
+@pytest.fixture
+def cartella(tmp_path, server):
+    """Cartella del radar con la configurazione di prova (fissa), fonti vuote e .env che punta ai servizi finti."""
+    (tmp_path / "config.toml").write_text(a_toml(config_di_prova()), encoding="utf-8")
+    return _cartella_del_radar(tmp_path, server)
+
+
+@pytest.fixture
+def cartella_vera(tmp_path, server):
+    """Come 'cartella' ma con il config.toml del repository: serve ai test che controllano proprio quel file."""
+    shutil.copy(RADICE / "config.toml", tmp_path / "config.toml")
+    return _cartella_del_radar(tmp_path, server)
+
+
+def lista(prefisso: str, annunci: list[tuple[str, str, str]]) -> str:
+    """Pagina di elenco di un'agenzia finta: annunci = [(slug, titolo, riga di dati)]."""
+    schede = "".join(f'<article class="card"><h3><a href="/{prefisso}/immobile/{s}/">{t}</a></h3><p>{info}</p></article>'
+                     for s, t, info in annunci)
+    return (f"<html><body><nav><a href='/{prefisso}/'>Home</a> <a href='/{prefisso}/contatti/'>Contatti</a></nav>"
+            f"<div class='lista'>{schede}</div></body></html>")
+
+
+def giro(cartella: Path, **k) -> int:
+    """Un controllo completo del radar nella cartella; restituisce quanti annunci nuovi ha messo in coda."""
+    cfg = carica_config(cartella)
+    p = Percorsi(cartella)
+    return esegui(cfg, p, carica_segreti(p, cfg), **k)
 
 
 def aggiungi_agenzia(cartella: Path, nome: str, comune: str, url: str, pattern: str = "") -> None:

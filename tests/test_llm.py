@@ -3,13 +3,12 @@ import json
 
 from motore.analisi import Annuncio
 from motore.archivio import Archivio
-from motore.config import carica_config
 from motore.dettagli import applica_llm, leggi_pagina, numero_nel_testo
 from motore.llm import ClienteLLM, _attesa, carica_modello, leggi_json, prova
 
-from conftest import RADICE, FintoOpenRouter
+from conftest import FintoOpenRouter, config_di_prova
 
-CFG = carica_config(RADICE)
+CFG = config_di_prova()
 
 
 def segreti(server, modello="fornitore/modello-prova"):
@@ -29,11 +28,6 @@ def test_file_del_modello(tmp_path):
     c = carica_modello(tmp_path, CFG, {"LLM_CONFIG": "annidato.toml"})
     assert (c["modello"], c["riserva"]) == ("p/q", ["r/s"])
     assert carica_modello(tmp_path, CFG, {"OPENROUTER_MODEL": "z/z"})["modello"] == "z/z"
-
-
-def test_file_del_modello_del_repository():
-    c = carica_modello(RADICE, CFG, {})
-    assert c["modello"] and c["temperatura"] is None and c["reasoning"] == {"enabled": False}
 
 
 def test_temperatura_solo_se_scritta(tmp_path):
