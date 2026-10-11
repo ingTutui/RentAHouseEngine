@@ -87,7 +87,19 @@ il controllo in un processo nuovo con il codice nuovo.
 ## 5. Decisioni di progetto e perché
 
 - **Prima lettura senza avvisi.** Altrimenti al primo avvio arriverebbero centinaia di annunci vecchi.
-  `notifica_prima_esecuzione = true` (in `config.local.toml`) li manda in un unico elenco.
+  `notifica_prima_esecuzione = true` (in `config.local.toml`) li manda in un unico elenco. Una fonte conta come
+  letta solo quando trova almeno un annuncio: una prima lettura vuota (sito in JavaScript senza browser, captcha,
+  `pattern_link` sbagliato) altrimenti farebbe arrivare come nuovi tutti gli annunci della lettura dopo. Se una
+  fonte letta vuota poi trova meno di 5 annunci sono novità vere (agenzia che non aveva affitti) e arrivano; se ne
+  trova 5 o più è la prima lettura vera.
+- **Un errore non ferma il controllo.** Un errore imprevisto vale solo per la fonte (diventa un suo problema, in
+  `--stato`) o per l'annuncio (non salvato, si riprova al controllo dopo); la coda parte comunque. `--verifica`
+  rifiuta i `pattern_link` che non sono espressioni regolari valide, così un CSV sbagliato non arriva sul PC
+  sempre acceso.
+- **Messaggi rifiutati da Telegram.** Con un errore 400 sul testo (per esempio l'HTML) il messaggio si riprova
+  senza formattazione; se Telegram lo rifiuta ancora l'annuncio esce dalla coda come `scartato` ("Telegram rifiuta
+  il messaggio"), altrimenti bloccherebbe per sempre tutti gli altri. Gli errori che riguardano la chat ("chat not
+  found") o la rete lasciano tutto in coda.
 - **Silenzio = coda, non pausa.** Di notte il radar controlla lo stesso: gli annunci trovati alle 3 sono già in
   coda e partono dopo le 8, con "Trovato alle HH:MM" se sono vecchi di oltre 45 minuti.
 - **Guasti.** Se una fonte non funziona da almeno 24 ore, una riga in fondo al primo messaggio con novità (al
@@ -137,7 +149,7 @@ il controllo in un processo nuovo con il codice nuovo.
 
 ### Fatto e verificato
 
-- 78 test automatici (`uv run pytest`) passano su Python 3.14.6 con requests 2.34.2, beautifulsoup4 4.15.0, lxml
+- 85 test automatici (`uv run pytest`) passano su Python 3.14.6 con requests 2.34.2, beautifulsoup4 4.15.0, lxml
   6.1.3, pytest 9.1.1 (le versioni di `uv.lock`); `uv run ruff check .` pulito (target py314);
   `uv run python radar.py --verifica` OK; lo stesso da un clone pulito, con `uv sync` che parte senza Python 3.14 sul
   PC e lo scarica da solo.
@@ -191,3 +203,5 @@ il controllo in un processo nuovo con il codice nuovo.
    il venv»): `pyproject.toml` e `uv.lock` al posto di `requirements.txt`, aggiornamento automatico con `uv sync`.
 7. Versione 2 su `main` (pull request #1). L'utente alza i filtri (750 €, 60 mq, Limidi dentro l'area), passa al
    controllo ogni ora e a 1 $ al giorno di LLM; client OpenRouter rivisto sulla documentazione, modello Haiku 5.5.
+8. Revisione del codice: prime letture vuote, errori che fermavano il controllo, prezzo unito alla metratura
+   ("€ 700 105 mq" letto come 700.105 €), messaggi rifiutati da Telegram che bloccavano la coda.

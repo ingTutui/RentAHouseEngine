@@ -1,6 +1,7 @@
 """Le fonti da controllare: fonti/fonti_portali.csv e fonti/fonti_agenzie.csv."""
 
 import csv
+import re
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -37,6 +38,18 @@ def leggi_csv(path: Path) -> list[dict]:
         except UnicodeDecodeError:
             continue
     raise SystemExit(f"Non riesco a leggere {path.name}: salvalo come CSV UTF-8")
+
+
+def pattern_sbagliati(fonti: list[Fonte]) -> list[str]:
+    """Fonti con un pattern_link che non e' un'espressione regolare valida: "nome (errore)"."""
+    out = []
+    for f in fonti:
+        if f.pattern:
+            try:
+                re.compile(f.pattern)
+            except re.error as ex:
+                out.append(f"{f.nome} ({ex})")
+    return out
 
 
 def carica_fonti(cartella: Path) -> list[Fonte]:

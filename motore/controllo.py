@@ -52,6 +52,15 @@ def leggi_fonte(f: Fonte, scaricatore: Scaricatore, inizializzata: bool, cfg: di
     return trovati, ""
 
 
+def leggi_sicura(f: Fonte, scaricatore: Scaricatore, inizializzata: bool, cfg: dict) -> tuple[Trovati, str]:
+    """Come leggi_fonte, ma un errore imprevisto (per esempio un pattern_link sbagliato) vale solo per questa fonte."""
+    try:
+        return leggi_fonte(f, scaricatore, inizializzata, cfg)
+    except Exception as ex:
+        log.exception("Errore leggendo %s", f.nome)
+        return {}, f"errore del radar: {type(ex).__name__}: {str(ex)[:120]}"
+
+
 def serve_pagina(a: Annuncio, ctx: Contesto) -> bool:
     d, f = ctx.cfg["dettagli"], ctx.cfg["filtri"]
     if not d.get("leggi_pagina_annuncio", True) or ctx.pagine >= int(d.get("max_pagine_per_controllo", 40)):
@@ -116,7 +125,7 @@ def esegui(cfg: dict, percorsi: Percorsi, segreti: dict[str, str], solo: str = "
     letture: dict[str, tuple[Trovati, str]] = {}
 
     def leggi_gruppo(lista: list[Fonte]):
-        return [(f.url, leggi_fonte(f, scaricatore, stati[f.url]["inizializzata"], cfg)) for f in lista]
+        return [(f.url, leggi_sicura(f, scaricatore, stati[f.url]["inizializzata"], cfg)) for f in lista]
 
     try:
         with ThreadPoolExecutor(max_workers=max(1, int(e.get("connessioni_parallele", 6)))) as pool:
@@ -124,7 +133,7 @@ def esegui(cfg: dict, percorsi: Percorsi, segreti: dict[str, str], solo: str = "
                 letture.update(dict(esiti))
         for f in fonti:
             if f.url not in letture:
-                letture[f.url] = leggi_fonte(f, scaricatore, stati[f.url]["inizializzata"], cfg)
+                letture[f.url] = leggi_sicura(f, scaricatore, stati[f.url]["inizializzata"], cfg)
         # 2) elaborazione: prima i portali (Immobiliare.it in testa), poi le agenzie, cosi' i confronti
         #    "gia' visto altrove" usano i dati piu' freschi
         ordine = sorted(fonti, key=lambda f: (0 if portale_di(f.url) == "immobiliare.it" else
@@ -138,6 +147,10 @@ def esegui(cfg: dict, percorsi: Percorsi, segreti: dict[str, str], solo: str = "
                 continue
             archivio.esito_fonte(f.url, f.nome, "", len(trovati))
             prima_volta = not stato["inizializzata"]
+            if prima_volta and stato["vuota"] and len(trovati) < 5:
+                # prima si leggeva senza errori ma senza annunci (agenzia senza affitti): questi pochi sono nuovi
+                # davvero. Tanti tutti insieme vogliono dire che prima l'estrazione non funzionava: prima lettura.
+                prima_volta = False
             nuovi_uid = [u for u in trovati if not archivio.visto(u)]
             archivio.tocca([u for u in trovati if u not in set(nuovi_uid)])
             vecchi_presenti = len(trovati) - len(nuovi_uid)
@@ -149,26 +162,44 @@ def esegui(cfg: dict, percorsi: Percorsi, segreti: dict[str, str], solo: str = "
             esiti: dict[str, int] = {}
             for uid in nuovi_uid:
                 url, testo, titolo = trovati[uid]
-                a = analizza(uid, url, testo, titolo, f, cfg)
-                if (prima_volta and not e["notifica_prima_esecuzione"]) or cambio_sito:
-                    archivio.salva(a, "base", scarta(a, cfg) or ("prima lettura" if prima_volta else "sito cambiato"))
-                    esiti["base"] = esiti.get("base", 0) + 1
-                    continue
-                s = elabora(a, f.js, ctx)
+                try:
+                    a = analizza(uid, url, testo, titolo, f, cfg)
+                    if (prima_volta and not e["notifica_prima_esecuzione"]) or cambio_sito:
+                        archivio.salva(a, "base",
+                                       scarta(a, cfg) or ("prima lettura" if prima_volta else "sito cambiato"))
+                        s = "base"
+                    else:
+                        s = elabora(a, f.js, ctx)
+                except Exception:  # non salvato: si riprova al prossimo controllo, gli altri annunci vanno avanti
+                    log.exception("Errore con l'annuncio %s di %s", url, f.nome)
+                    s = "errore"
                 esiti[s] = esiti.get(s, 0) + 1
             archivio.commit()
+            if esiti.get("errore"):
+                archivio.esito_fonte(f.url, f.nome, f"errore del radar con {esiti['errore']} annunci: vedi radar.log",
+                                     len(trovati))
             log.info("OK  %-40s %3d annunci, %d nuovi%s", f.nome[:40], len(trovati), esiti.get("da_inviare", 0),
                      (" (prima lettura: salvati senza avvisare)" if prima_volta else "") +
                      (f", {esiti['doppione']} gia' visti altrove" if esiti.get("doppione") else "") +
                      (f", {esiti['scartato']} scartati dai filtri" if esiti.get("scartato") else ""))
         if not solo or solo == "portale":
-            extra, errore = idealista.cerca(cfg, segreti, archivio)
+            try:
+                extra, errore = idealista.cerca(cfg, segreti, archivio)
+            except Exception as ex:
+                log.exception("Errore con l'API di Idealista")
+                extra, errore = [], f"errore del radar: {type(ex).__name__}"
             if errore:
                 log.info("KO  Idealista API: %s", errore)
             for a in extra:
                 if not archivio.visto(a.uid):
-                    elabora(a, False, ctx)
+                    try:
+                        elabora(a, False, ctx)
+                    except Exception:
+                        log.exception("Errore con l'annuncio %s di Idealista", a.url)
             archivio.commit()
+    except Exception:
+        # qualunque altro errore: gli annunci gia' in coda partono lo stesso
+        log.exception("Controllo interrotto da un errore: consegno comunque gli annunci in coda")
     finally:
         scaricatore.chiudi()
     nuovi = ctx.conteggi.get("nuovi", 0)

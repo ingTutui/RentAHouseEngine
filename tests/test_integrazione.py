@@ -2,9 +2,12 @@
 import json
 from datetime import datetime, timedelta
 
+from motore import doppioni
 from motore.archivio import Archivio
 from motore.config import Percorsi, carica_config, carica_segreti
 from motore.controllo import esegui
+from motore.fonti import Fonte, pattern_sbagliati
+from motore.verifica import verifica
 
 from conftest import FintoOpenRouter, FintoTelegram, aggiungi_agenzia, scrivi_locale
 
@@ -158,3 +161,59 @@ def test_fonte_in_errore_non_manda_messaggi(cartella, server):
     arc = Archivio(cartella / "stato" / "radar.db")
     assert arc.problemi(0) and arc.problemi(0)[0]["nome"] == "Agenzia Spenta"
     arc.chiudi()
+
+
+def test_prima_lettura_vuota_non_manda_raffiche(cartella, server):
+    tg = FintoTelegram(server)
+    scrivi_locale(cartella, LOCALE.format(dalle="", alle=""))
+    # il sito per ora non mostra annunci (JavaScript senza browser, captcha...): quando si leggono, sono vecchi
+    server.pagina("/e/affitti/", lista("e", []))
+    aggiungi_agenzia(cartella, "Agenzia Epsilon", "Modena", server.url("/e/affitti/"))
+    assert giro(cartella) == 0
+    vecchi = [(f"bilocale-epsilon-{i}", f"Bilocale {i}", f"{75 + i} mq · € {500 + i * 10}/mese") for i in range(6)]
+    server.pagina("/e/affitti/", lista("e", vecchi))
+    assert giro(cartella) == 0 and tg.messaggi == []
+    # un'agenzia davvero senza affitti che ne pubblica uno: arriva
+    server.pagina("/f/affitti/", lista("f", []))
+    aggiungi_agenzia(cartella, "Agenzia Zeta", "Formigine", server.url("/f/affitti/"))
+    assert giro(cartella) == 0
+    server.pagina("/f/affitti/", lista("f", [("bilocale-zeta-1", "Bilocale a Formigine",
+                                              "Formigine · 70 mq · € 600/mese")]))
+    assert giro(cartella) == 1 and len(tg.messaggi) == 1 and "Bilocale a Formigine" in tg.messaggi[0]
+
+
+def test_errore_in_una_fonte_non_ferma_il_controllo(cartella, server, monkeypatch):
+    tg = FintoTelegram(server)
+    scrivi_locale(cartella, LOCALE.format(dalle="", alle=""))
+    server.pagina("/g/affitti/", lista("g", [("bilocale-gamma-1", "Bilocale", "70 mq · € 600/mese")]))
+    aggiungi_agenzia(cartella, "Agenzia Rotta", "Modena", server.url("/g/affitti/"), pattern="immobile/(")
+    a = [("bilocale-centro-1001", "Bilocale in centro a Formigine", "Formigine · 70 mq · € 600/mese")]
+    server.pagina("/a/affitti/", lista("a", a))
+    aggiungi_agenzia(cartella, "Agenzia Alfa", "Formigine", server.url("/a/affitti/", host="localhost"))
+    assert giro(cartella) == 0
+    a += [("trilocale-nuovo-1002", "Trilocale a Formigine", "Formigine · 85 mq · € 650/mese"),
+          ("bilocale-guasto-1003", "Bilocale a Formigine", "Formigine · 90 mq · € 520/mese")]
+    server.pagina("/a/affitti/", lista("a", a))
+    vera = doppioni.cerca
+
+    def cerca(annuncio, *altro):
+        if "guasto" in annuncio.url:
+            raise RuntimeError("errore finto")
+        return vera(annuncio, *altro)
+
+    monkeypatch.setattr(doppioni, "cerca", cerca)
+    assert giro(cartella) == 1 and len(tg.messaggi) == 1 and "Trilocale a Formigine" in tg.messaggi[0]
+    arc = Archivio(cartella / "stato" / "radar.db")
+    assert not arc.visto(server.url("/a/immobile/bilocale-guasto-1003", host="localhost"))   # si riprova dopo
+    note = {p["nome"]: p["nota"] for p in arc.problemi(0)}
+    arc.chiudi()
+    assert note["Agenzia Rotta"].startswith("errore del radar") and "Agenzia Alfa" in note
+
+
+def test_verifica_rifiuta_un_pattern_sbagliato(cartella):
+    assert verifica(cartella) == 0
+    aggiungi_agenzia(cartella, "Agenzia Rotta", "Modena", "https://rotta.example/affitti/", pattern="immobile/(")
+    assert verifica(cartella) == 1
+    fonti = [Fonte("agenzia", "Buona", "", "https://a.it/", pattern=r"immobile/\d+"),
+             Fonte("agenzia", "Rotta", "", "https://b.it/", pattern="immobile/(")]
+    assert [x.split(" (")[0] for x in pattern_sbagliati(fonti)] == ["Rotta"]

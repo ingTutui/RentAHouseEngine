@@ -41,8 +41,10 @@ def verifica(base: Path) -> int:
         return _fine(errori)
 
     def fonti_ok() -> bool:
-        from .fonti import carica_fonti
-        carica_fonti(percorsi.fonti)  # basta che i file si leggano
+        from .fonti import carica_fonti, pattern_sbagliati
+        sbagliati = pattern_sbagliati(carica_fonti(percorsi.fonti))
+        if sbagliati:
+            raise ValueError("pattern_link non valido in fonti_agenzie.csv: " + "; ".join(sbagliati))
         return (percorsi.fonti / "fonti_agenzie.csv").exists() and (percorsi.fonti / "fonti_portali.csv").exists()
 
     def estrazione_ok() -> bool:

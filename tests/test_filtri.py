@@ -1,6 +1,6 @@
 import copy
 
-from motore.analisi import Annuncio, analizza, aggiorna_area, e_stanza, scarta
+from motore.analisi import Annuncio, analizza, aggiorna_area, e_stanza, importi, leggi_numeri, scarta
 from motore.comuni import comune_ufficiale, trova_luogo, valuta_area
 from motore.config import carica_config
 from motore.fonti import Fonte
@@ -83,3 +83,11 @@ def test_fuori_zona_scarta_solo_se_sicuro():
     c = analizza("u2", "https://ag.it/immobile/bilocale-2", "Bilocale a Pavullo 60 mq € 600/mese",
                  "Bilocale a Pavullo", AGENZIA, CFG)
     assert (c.comune, c.origine_luogo, c.area, scarta(c, CFG)) == ("Pavullo nel Frignano", "testo", "fuori", "")
+
+
+def test_prezzo_seguito_dalla_metratura():
+    # "€ 700" e "105 mq" in due elementi vicini della scheda: il testo li unisce in "€ 700 105 mq"
+    assert importi("€ 700 105 mq") == [700] and importi("€ 700 120 m²") == [700]
+    assert importi("€ 125 000") == [125000] and importi("1 200 €") == [1200] and importi("€ 1.200/mese") == [1200]
+    n = leggi_numeri("Trilocale € 700 105 mq", "https://ag.it/immobile/trilocale-1", CFG)
+    assert (n["prezzo"], n["mq"], n["vendita"]) == (700, 105, False)
