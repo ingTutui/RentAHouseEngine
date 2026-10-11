@@ -10,7 +10,7 @@ che rispetta i tuoi filtri. L'obiettivo è vedere gli annunci che le agenzie pub
 | Regola | Come funziona |
 |---|---|
 | **Incrementale** | Ogni annuncio ti arriva una volta sola. Se lo stesso immobile compare su più fonti (sito dell'agenzia, poi Immobiliare.it, poi Casa.it) viene riconosciuto e non lo rivedi. Se cambia solo il prezzo di poco, è lo stesso annuncio. |
-| **Filtri** | Affitto fino a **750 €/mese** (spese condominiali escluse), almeno **60 mq**, nei comuni dell'area. Niente stanze, negozi, uffici, box. Si cambiano in `config.toml`. |
+| **Filtri** | Affitto fino a **800 €/mese** (spese condominiali escluse), almeno **60 mq**, nei comuni dell'area. Niente stanze, negozi, uffici, box. Si cambiano in `config.toml`. |
 | **Orari** | **Silenzio dalle 22:00 alle 08:00**. Di notte il radar continua a controllare, ma i messaggi restano in coda e ti arrivano tutti insieme dopo le 8:00. |
 | **Solo novità** | Se non trova niente non scrive. Gli avvisi sulle fonti rotte viaggiano in fondo a un messaggio con novità, al massimo una volta a settimana (a parte solo dopo 3 giorni senza altri messaggi). |
 | **Aggiornamenti da GitHub** | Le modifiche al codice arrivano come pull request. Il PC sempre acceso scarica da solo solo ciò che hai unito a `main`. |
@@ -91,7 +91,7 @@ la versione che ha.
 git clone https://github.com/ingTutui/RentAHouseEngine.git
 cd RentAHouseEngine
 uv sync                         # .venv con Python 3.14 e le librerie, pytest e ruff compresi
-uv run pytest                   # tutti i test (usano siti, Telegram e OpenRouter finti: niente rete)
+uv run pytest                   # tutti i test, circa due minuti (siti, Telegram e OpenRouter finti: niente rete)
 uv run ruff check .             # controllo dello stile
 uv run python radar.py --verifica   # la stessa autoverifica che fa l'aggiornamento automatico
 ```
@@ -102,6 +102,14 @@ uv run python radar.py --verifica   # la stessa autoverifica che fa l'aggiorname
   `config.local.toml` con `[aggiornamento]` e `automatico = false`.
 - Per provare una fonte senza salvare niente: `uv run python radar.py --prova "nome agenzia"` (con `--dettagli` legge
   anche le schede dei primi annunci).
+
+**I test e `config.toml`.** I test del comportamento (filtri, notifiche, doppioni, giri completi) usano una
+configurazione fissa, `config_di_prova()` in `tests/conftest.py`: cambiare `config.toml` non li rompe. Il file vero
+lo guarda `tests/test_configurazione.py`, che legge i valori dal file (soglie, orario di silenzio, comuni, intervallo,
+`llm.toml`, fonti) e fallisce solo se il file è sbagliato: chiave con un refuso, valore del tipo sbagliato, comune
+che il radar non conosce, un comune sia dentro sia fuori area. `tests/test_architettura.py` controlla le regole del
+progetto (nessun segreto su git, `.env` ignorato, TLS sempre attivo, solo le librerie ammesse, modello solo in
+`llm.toml`, fine riga dei `.bat`).
 
 **Per cambiare qualcosa:** crea un ramo (`git switch -c nome-modifica`), modifica, esegui `uv run pytest`,
 poi `git push -u origin nome-modifica` e apri la pull request su GitHub. Quando premi **Merge**, entro un'ora
@@ -141,8 +149,8 @@ I valori più usati, in `config.toml`:
 
 | Sezione | Chiave | Valore attuale |
 |---|---|---|
-| `[filtri]` | `prezzo_max` | 750 |
-| `[filtri]` | `mq_min` | 60 |
+| `[filtri]` | `prezzo_max` | 800 (0 = nessun limite) |
+| `[filtri]` | `mq_min` | 60 (0 = nessun limite) |
 | `[filtri]` | `dati_mancanti` | `"invia"`: se prezzo o metratura mancano anche nella pagina, l'annuncio arriva comunque, con "prezzo non indicato". `"scarta"` per escluderli. |
 | `[filtri]` | `fuori_zona` | `"scarta"` solo se il comune è certo; se il luogo è solo citato nel testo arriva con un avviso. |
 | `[notifiche]` | `silenzio_dalle`, `silenzio_alle` | `"22:00"`, `"08:00"` (vuoti = mai silenzio) |
@@ -156,6 +164,18 @@ Un esempio di `config.local.toml` che sposta il silenzio solo su un PC:
 [notifiche]
 silenzio_dalle = "23:00"
 ```
+
+**Cambiare un valore in `config.toml` è sicuro.** Prima di tenere una versione nuova, il PC sempre acceso lancia
+`--verifica`, che controlla anche i valori: un numero scritto tra virgolette (`prezzo_max = "800"`), una scelta che
+non esiste (`fuori_zona = "boh"`), una stringa vuota in `tipi_esclusi` (scarterebbe ogni annuncio), un orario scritto
+male (`"22"` invece di `"22:00"`), minimo maggiore del massimo. In quel caso la modifica non viene presa e il radar
+resta alla versione di prima; `--stato` dice quale valore è sbagliato e, come per le fonti rotte, un avviso arriva
+su Telegram in fondo a un messaggio con novità. Per provare prima del push: `uv run python radar.py --verifica`.
+I test non dipendono dai valori di `config.toml`: puoi cambiare prezzi, metrature, orari e comuni senza toccarli
+(vedi «Sul PC dove programmi»).
+
+Due impostazioni vengono lette solo quando serve: `intervallo_minuti` vale quando installi l'avvio automatico (se lo
+cambi, ripeti l'installazione sul PC sempre acceso) e `llm.toml` scritto male spegne l'LLM senza fermare il radar.
 
 ## Comandi
 
@@ -174,7 +194,7 @@ silenzio_dalle = "23:00"
 | `uv run python radar.py --prova-llm` | Controlla chiave OpenRouter e modello. |
 | `uv run python radar.py --telegram-setup` | Collega il bot Telegram. |
 | `uv run python radar.py --esporta` | Salva tutti gli annunci visti in `stato/annunci_visti.csv`. |
-| `uv run python radar.py --verifica` | Autoverifica del codice. |
+| `uv run python radar.py --verifica` | Autoverifica del codice e dei valori di `config.toml`. |
 | `uv run python radar.py --installa-avvio` / `--togli-avvio` | Installa o toglie il controllo automatico. |
 
 Archivio, diario (`radar.log`) ed esportazioni stanno nella cartella `stato/`, che git ignora.
@@ -217,8 +237,8 @@ inondarti di annunci vecchi.
 - Telegram non risponde: controlla `TELEGRAM_TOKEN` e `TELEGRAM_CHAT_ID` in `.env`, oppure rilancia
   `--telegram-setup`.
 - Una fonte non estrae niente: `uv run python radar.py --prova "nome"`; il diario è in `stato/radar.log`.
-- Aggiornamento non riuscito: `--stato` mostra l'ultimo errore. La versione che non ha superato la verifica
-  non viene riprovata finché non ne arriva una nuova. Se l'errore è «librerie non allineate» riprova da solo al
+- Aggiornamento non riuscito: `--stato` mostra l'ultimo errore (anche un valore sbagliato in `config.toml`). La
+  versione che non ha superato la verifica non viene riprovata finché non ne arriva una nuova. Se l'errore è «librerie non allineate» riprova da solo al
   controllo dopo; per farlo subito: `uv sync` nella cartella del progetto.
 
 ## Struttura

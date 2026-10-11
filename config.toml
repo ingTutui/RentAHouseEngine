@@ -8,7 +8,7 @@
 
 [filtri]
 prezzo_min = 0                      # 0 = nessun limite
-prezzo_max = 750                    # canone mensile massimo in euro, spese escluse
+prezzo_max = 800                    # canone mensile massimo in euro, spese escluse
 mq_min = 60
 mq_max = 0
 locali_min = 0
