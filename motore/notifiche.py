@@ -29,6 +29,12 @@ def esc_attr(t: str) -> str:
     return esc(t).replace('"', "&quot;")
 
 
+def semplice(testo: str) -> str:
+    """Il messaggio senza HTML: per lo schermo e per quando Telegram rifiuta la formattazione."""
+    return re.sub(r"<[^>]+>", "", testo).replace("&lt;", "<").replace("&gt;", ">").replace("&quot;", '"') \
+        .replace("&amp;", "&")
+
+
 class Telegram:
     def __init__(self, segreti: dict[str, str], finto: bool = False):
         self.token = (segreti.get("TELEGRAM_TOKEN") or "").strip()
@@ -36,25 +42,28 @@ class Telegram:
         self.base = (segreti.get("TELEGRAM_API_URL") or "https://api.telegram.org").rstrip("/")
         self.finto = finto or not (self.token and self.chat)
         self.inviati: list[str] = []
+        self.rifiutato = False          # l'ultimo invio e' fallito per il testo stesso, non per chat, rete o token
         if self.finto and not finto:
             log.info("Telegram non configurato su questo PC: i messaggi vengono solo mostrati a schermo")
 
-    def invia(self, testo: str, anteprima: bool = True, url_anteprima: str = "") -> bool:
-        """anteprima: foto e titolo del link sotto al messaggio (di url_anteprima, se indicato)."""
-        testo = testo[:LIMITE]
+    def invia(self, testo: str, anteprima: bool = True, url_anteprima: str = "", html: bool = True) -> bool:
+        """anteprima: foto e titolo del link sotto al messaggio (di url_anteprima, se indicato).
+        html=False: manda il testo senza formattazione."""
+        testo = testo[:LIMITE] if html else semplice(testo)[:LIMITE]
         opzioni = {"is_disabled": not anteprima}
         if anteprima and url_anteprima:
             opzioni["url"] = url_anteprima
+        self.rifiutato = False
         if self.finto:
             self.inviati.append(testo)
-            print("\n--- messaggio ---\n" + re.sub(r"<[^>]+>", "", testo).replace("&amp;", "&")
-                  .replace("&lt;", "<").replace("&gt;", ">") + "\n-----------------")
+            print("\n--- messaggio ---\n" + semplice(testo) + "\n-----------------")
             return True
+        dati = {"chat_id": self.chat, "text": testo, "link_preview_options": json.dumps(opzioni)}
+        if html:
+            dati["parse_mode"] = "HTML"
         for _ in range(3):
             try:
-                r = requests.post(f"{self.base}/bot{self.token}/sendMessage", timeout=20, data={
-                    "chat_id": self.chat, "text": testo, "parse_mode": "HTML",
-                    "link_preview_options": json.dumps(opzioni)})
+                r = requests.post(f"{self.base}/bot{self.token}/sendMessage", timeout=20, data=dati)
                 if r.status_code == 429:
                     try:
                         attesa = int(r.json().get("parameters", {}).get("retry_after", 5))
@@ -67,6 +76,8 @@ class Telegram:
                     time.sleep(1.1)
                     return True
                 log.error("Telegram ha risposto %s: %s", r.status_code, r.text[:200])
+                # 400 "can't parse entities", "message is too long"...: colpa del testo; "chat not found" no
+                self.rifiutato = r.status_code == 400 and "chat" not in r.text.lower()
                 return False
             except requests.RequestException as ex:
                 log.error("Telegram non raggiungibile (%s)", type(ex).__name__)
@@ -253,7 +264,17 @@ def consegna(archivio, tg: Telegram, cfg: dict, adesso: datetime | None = None, 
             testo += coda_guasti
         else:
             ultimo = False
-        if not tg.invia(testo, anteprima, url):
+        ok = tg.invia(testo, anteprima, url)
+        if not ok and tg.rifiutato:
+            # Telegram rifiuta proprio questo testo (di solito la formattazione): riprova senza HTML
+            ok = tg.invia(testo, anteprima, url, html=False)
+            if not ok and tg.rifiutato:
+                # rifiutato comunque: esce dalla coda, altrimenti bloccherebbe per sempre tutti gli altri
+                log.error("Telegram rifiuta il messaggio anche senza formattazione: %d annunci tolti dalla coda "
+                          "(stato 'scartato', vedi --esporta)", len(uids))
+                archivio.segna_rifiutati(uids, "Telegram rifiuta il messaggio")
+                continue
+        if not ok:
             log.warning("Telegram non ha accettato il messaggio: %d annunci restano in coda",
                         sum(len(m[1]) for m in messaggi[i:]))
             break

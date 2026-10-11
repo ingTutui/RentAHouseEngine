@@ -74,12 +74,16 @@ class FintoTelegram:
         self.messaggi: list[str] = []
         self.campi: list[dict] = []          # tutti i campi di ogni richiesta sendMessage
         self.rifiuta = rifiuta
+        self.respingi: Callable[[dict], str] | None = None   # campi -> descrizione di un errore 400 ("" = accetta)
         server.gestori["/botTOKEN"] = self
 
     def __call__(self, path: str, headers: dict, corpo: bytes):
         if self.rifiuta:
             return 500, "application/json", json.dumps({"ok": False, "description": "errore finto"})
         dati = {k: v[0] for k, v in parse_qs(corpo.decode("utf-8")).items()}
+        descrizione = self.respingi(dati) if self.respingi else ""
+        if descrizione:
+            return 400, "application/json", json.dumps({"ok": False, "error_code": 400, "description": descrizione})
         self.campi.append(dati)
         self.messaggi.append(dati.get("text", ""))
         return 200, "application/json", json.dumps({"ok": True, "result": {"message_id": len(self.messaggi)}})

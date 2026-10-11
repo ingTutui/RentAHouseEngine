@@ -25,7 +25,7 @@ l'area di ricerca, le mappe, gli elenchi delle agenzie).
 
 ```
 uv sync                                   # una volta: .venv con Python 3.14 e le librerie (anche pytest e ruff)
-uv run pytest                             # 78 test, circa un minuto, nessuna rete (siti, Telegram e OpenRouter finti)
+uv run pytest                             # 85 test, circa due minuti, nessuna rete (siti, Telegram e OpenRouter finti)
 uv run ruff check .
 uv run python radar.py --verifica         # autoverifica: la usa anche l'aggiornamento automatico
 uv run python radar.py --stato            # archivio, coda, LLM, fonti con problemi

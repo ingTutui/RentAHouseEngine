@@ -8,9 +8,12 @@ from .comuni import comune_ufficiale, trova_luogo, valuta_area
 from .estrazione import NOMI_PORTALI, portale_di
 from .fonti import Fonte
 
+# migliaia separate da punto, apostrofo o spazio; un gruppo di tre cifre seguito da "mq" e' la metratura
+# ("€ 700 105 mq" sono 700 euro e 105 mq, non 700.105 euro)
+MIGLIAIA = r"\d{1,3}(?:[.\s']\d{3}(?!\d)(?!\s*(?:mq|m²|m2|mt|metri)))+"
 RE_EURO = re.compile(
-    r"(?:€|euro\b|eur\b)\s*(\d{1,3}(?:[.\s']\d{3})+|\d+)(?:,\d{1,2})?"
-    r"|(\d{1,3}(?:[.\s']\d{3})+|\d+)(?:,\d{1,2})?\s*(?:€|euro\b|eur\b)", re.I)
+    rf"(?:€|euro\b|eur\b)\s*({MIGLIAIA}|\d+)(?:,\d{{1,2}})?"
+    rf"|({MIGLIAIA}|\d+)(?:,\d{{1,2}})?\s*(?:€|euro\b|eur\b)", re.I)
 RE_MQ = re.compile(r"(\d{2,4})(?:[.,]\d+)?\s*(?:mq|m²|m2|mt2|metri\s*quadr)", re.I)
 RE_LOCALI = re.compile(r"(\d)\s*(?:locali|vani)\b", re.I)
 PAROLE_LOCALI = {"monolocale": 1, "bilocale": 2, "trilocale": 3, "quadrilocale": 4, "pentalocale": 5}

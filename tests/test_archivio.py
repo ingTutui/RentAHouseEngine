@@ -62,3 +62,18 @@ def test_coda(tmp_path):
     assert [y.uid for y in a.in_coda()] == ["u1"]
     a.segna_inviati(["u1"])
     assert a.in_coda() == [] and a.stato_di("u1") == "inviato"
+
+
+def test_prima_lettura_vuota_non_inizializza(tmp_path):
+    a = Archivio(tmp_path / "radar.db")
+    u = "https://ag.it/affitti/"
+    a.esito_fonte(u, "Ag", "", 0)               # letta, ma senza annunci (sito in JavaScript, captcha...)
+    assert a.fonte(u)["inizializzata"] is False and a.fonte(u)["vuota"] is True
+    a.esito_fonte(u, "Ag", "HTTP 500", 0)
+    a.esito_fonte(u, "Ag", "", 0)               # dopo un errore, ancora vuota: non inizializzata
+    assert a.fonte(u)["inizializzata"] is False
+    a.esito_fonte(u, "Ag", "", 3)
+    assert a.fonte(u)["inizializzata"] is True and a.fonte(u)["vuota"] is False
+    a.esito_fonte(u, "Ag", "", 0)               # gia' inizializzata: resta tale
+    assert a.fonte(u)["inizializzata"] is True
+    a.chiudi()

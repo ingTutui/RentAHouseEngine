@@ -138,3 +138,34 @@ def test_testo_del_messaggio():
     assert "Non ancora su Immobiliare.it" in t and "Anche su:" in t and "Trovato" not in t
     t2 = messaggio(a, [("Immobiliare.it", "portale", "https://www.immobiliare.it/annunci/1")], datetime(2026, 10, 6))
     assert "Non ancora su Immobiliare.it" not in t2
+
+
+def test_messaggio_rifiutato_non_blocca_la_coda(tmp_path, server):
+    tg_finto = FintoTelegram(server)
+    tg = Telegram({"TELEGRAM_TOKEN": "TOKEN", "TELEGRAM_CHAT_ID": "42", "TELEGRAM_API_URL": server.url("")})
+    arc = Archivio(tmp_path / "r.db")
+    metti_in_coda(arc, 3)
+
+    def respingi(campi):
+        if "Bilocale 0" in campi["text"]:
+            return "Bad Request: can't parse entities"                  # rifiutato in ogni caso
+        if "Bilocale 1" in campi["text"] and campi.get("parse_mode") == "HTML":
+            return "Bad Request: can't parse entities"                  # rifiutato solo con l'HTML
+        return ""
+
+    tg_finto.respingi = respingi
+    assert consegna(arc, tg, CFG, datetime(2026, 10, 7, 9, 0)) == 2
+    assert [arc.stato_di(f"u{i}") for i in range(3)] == ["scartato", "inviato", "inviato"]
+    assert arc.db.execute("SELECT scartato FROM annunci WHERE uid='u0'").fetchone()[0] == "Telegram rifiuta il messaggio"
+    assert "parse_mode" not in tg_finto.campi[0] and "<b>" not in tg_finto.messaggi[0]   # u1 senza formattazione
+    assert tg_finto.campi[1]["parse_mode"] == "HTML"
+
+
+def test_chat_sbagliata_non_svuota_la_coda(tmp_path, server):
+    tg_finto = FintoTelegram(server)
+    tg_finto.respingi = lambda campi: "Bad Request: chat not found"   # colpa della chat, non dei messaggi
+    tg = Telegram({"TELEGRAM_TOKEN": "TOKEN", "TELEGRAM_CHAT_ID": "42", "TELEGRAM_API_URL": server.url("")})
+    arc = Archivio(tmp_path / "r.db")
+    metti_in_coda(arc, 2)
+    assert consegna(arc, tg, CFG, datetime(2026, 10, 7, 9, 0)) == 0
+    assert [arc.stato_di(f"u{i}") for i in range(2)] == ["da_inviare", "da_inviare"]

@@ -114,13 +114,14 @@ class Archivio:
 
     # ------------------------------------------------------------------ fonti
     def fonte(self, url: str) -> dict:
-        r = self.db.execute("""SELECT inizializzata, errori_consecutivi, ultimi_link, problema_dal, segnalato_il, nota
-                               FROM fonti WHERE url=?""", (url,)).fetchone()
+        """vuota: letta senza errori ma senza trovare annunci, quindi non ancora inizializzata."""
+        r = self.db.execute("""SELECT inizializzata, errori_consecutivi, ultimi_link, problema_dal, segnalato_il, nota,
+                               ultimo_ok FROM fonti WHERE url=?""", (url,)).fetchone()
         if not r:
             return {"inizializzata": False, "errori": 0, "ultimi_link": 0, "problema_dal": "", "segnalato_il": "",
-                    "nota": ""}
+                    "nota": "", "vuota": False}
         return {"inizializzata": bool(r[0]), "errori": r[1], "ultimi_link": r[2], "problema_dal": r[3] or "",
-                "segnalato_il": r[4] or "", "nota": r[5] or ""}
+                "segnalato_il": r[4] or "", "nota": r[5] or "", "vuota": not r[0] and bool(r[6])}
 
     def esito_fonte(self, url: str, nome: str, errore: str, n_link: int) -> None:
         prima = self.fonte(url)
@@ -135,14 +136,17 @@ class Archivio:
         elif n_link == 0 and (prima["ultimi_link"] > 0 or prima["problema_dal"]):
             nota = prima["nota"] if prima["problema_dal"] and "nessun annuncio" in prima["nota"] else \
                 f"nessun annuncio trovato (prima ne aveva {prima['ultimi_link']}): il sito potrebbe essere cambiato"
-            self.db.execute("""UPDATE fonti SET nome=?, inizializzata=1, ultimo_ok=?, errori_consecutivi=0,
+            self.db.execute("""UPDATE fonti SET nome=?, ultimo_ok=?, errori_consecutivi=0,
                 ultimi_link=0, problema_dal=CASE WHEN problema_dal='' OR problema_dal IS NULL THEN ? ELSE problema_dal END,
                 nota=? WHERE url=?""", (nome, ora, ora, nota, url))
         else:
+            # inizializzata solo quando trova almeno un annuncio: una prima lettura vuota (sito in JavaScript senza
+            # browser, captcha, pattern sbagliato) farebbe arrivare come nuovi tutti gli annunci della lettura dopo
             self.db.execute("""INSERT INTO fonti(url,nome,inizializzata,ultimo_ok,errori_consecutivi,ultimi_link)
-                VALUES(?,?,1,?,0,?) ON CONFLICT(url) DO UPDATE SET nome=excluded.nome, inizializzata=1,
+                VALUES(?,?,?,?,0,?) ON CONFLICT(url) DO UPDATE SET nome=excluded.nome,
+                inizializzata=MAX(inizializzata, excluded.inizializzata),
                 ultimo_ok=excluded.ultimo_ok, errori_consecutivi=0, ultimi_link=excluded.ultimi_link,
-                problema_dal='', segnalato_il='', nota='', avvisato=0""", (url, nome, ora, n_link))
+                problema_dal='', segnalato_il='', nota='', avvisato=0""", (url, nome, 1 if n_link else 0, ora, n_link))
         self.db.commit()
 
     def problemi(self, ore: float) -> list[dict]:
@@ -225,6 +229,11 @@ class Archivio:
         righe = self.db.execute("""SELECT dati, uid, url, fonte, tipo_fonte, comune, titolo, prezzo, mq, locali
             FROM annunci WHERE stato='da_inviare' ORDER BY priorita, primo_visto""").fetchall()
         return [self._da_riga(r) for r in righe]
+
+    def segna_rifiutati(self, uids: Iterable[str], motivo: str) -> None:
+        """Annunci che Telegram non accetta in nessun modo: escono dalla coda per non bloccare gli altri."""
+        self.db.executemany("UPDATE annunci SET stato='scartato', scartato=? WHERE uid=?", [(motivo, u) for u in uids])
+        self.db.commit()
 
     def segna_inviati(self, uids: Iterable[str]) -> None:
         ora = adesso()
